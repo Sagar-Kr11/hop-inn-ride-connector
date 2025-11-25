@@ -179,15 +179,19 @@ const Booking = () => {
                 ))}
               </div>
 
-              {selectedAuto && (
-                <div className="mt-6 flex gap-4">
+              <div className="mt-6 flex gap-4">
+                {selectedAuto ? (
                   <Link to="/ride" className="flex-1">
                     <Button size="lg" className="w-full">
                       Confirm Booking
                     </Button>
                   </Link>
-                </div>
-              )}
+                ) : (
+                  <Button size="lg" className="w-full" disabled>
+                    Select an auto to continue
+                  </Button>
+                )}
+              </div>
             </Card>
           </div>
         </div>
