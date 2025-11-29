@@ -5,44 +5,36 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import Header from "@/components/Header";
 import { useState } from "react";
-
-const nearbyRequests = [
-  {
-    id: 1,
-    passenger: "Priya S.",
-    pickup: "FC Road",
-    destination: "Hinjewadi",
-    distance: "0.5 km away",
-    fare: 45,
-  },
-  {
-    id: 2,
-    passenger: "Rahul M.",
-    pickup: "Shivaji Nagar",
-    destination: "Kothrud",
-    distance: "0.8 km away",
-    fare: 38,
-  },
-  {
-    id: 3,
-    passenger: "Sneha K.",
-    pickup: "Camp Area",
-    destination: "Viman Nagar",
-    distance: "1.2 km away",
-    fare: 52,
-  },
-];
-
+const nearbyRequests = [{
+  id: 1,
+  passenger: "Priya S.",
+  pickup: "FC Road",
+  destination: "Hinjewadi",
+  distance: "0.5 km away",
+  fare: 45
+}, {
+  id: 2,
+  passenger: "Rahul M.",
+  pickup: "Shivaji Nagar",
+  destination: "Kothrud",
+  distance: "0.8 km away",
+  fare: 38
+}, {
+  id: 3,
+  passenger: "Sneha K.",
+  pickup: "Camp Area",
+  destination: "Viman Nagar",
+  distance: "1.2 km away",
+  fare: 52
+}];
 const Driver = () => {
   const [isOnline, setIsOnline] = useState(true);
-
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       <Header />
 
       <main className="container px-4 py-6">
         {/* Status Header */}
-        <Card className="p-6 mb-6 shadow-lg">
+        <Card className="p-6 mb-6 shadow-lg bg-[#face4a]">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold mb-2">Driver Dashboard</h1>
@@ -52,12 +44,7 @@ const Driver = () => {
               <Label htmlFor="online-toggle" className="font-semibold">
                 {isOnline ? "Online" : "Offline"}
               </Label>
-              <Switch 
-                id="online-toggle"
-                checked={isOnline} 
-                onCheckedChange={setIsOnline}
-                className="data-[state=checked]:bg-secondary"
-              />
+              <Switch id="online-toggle" checked={isOnline} onCheckedChange={setIsOnline} className="data-[state=checked]:bg-secondary" />
             </div>
           </div>
         </Card>
@@ -125,8 +112,7 @@ const Driver = () => {
               </p>
               
               <div className="space-y-3">
-                {nearbyRequests.map((request) => (
-                  <Card key={request.id} className="p-4 hover:shadow-md transition-shadow">
+                {nearbyRequests.map(request => <Card key={request.id} className="p-4 hover:shadow-md transition-shadow bg-destructive-foreground">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
@@ -157,8 +143,7 @@ const Driver = () => {
                         <Button size="sm" variant="secondary">Accept</Button>
                       </div>
                     </div>
-                  </Card>
-                ))}
+                  </Card>)}
               </div>
             </Card>
           </div>
@@ -198,7 +183,7 @@ const Driver = () => {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-secondary">✓</span>
-                  <span>Maintain 4.5+ rating for bonuses</span>
+                  <span>​Have a friendly nature with passengers         </span>
                 </li>
               </ul>
             </Card>
@@ -219,8 +204,6 @@ const Driver = () => {
           </div>
         </div>
       </main>
-    </div>
-  );
+    </div>;
 };
-
 export default Driver;
