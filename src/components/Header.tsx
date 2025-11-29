@@ -1,14 +1,12 @@
-import { Menu, UserCircle } from "lucide-react";
+import { Menu, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-
 const Header = () => {
-  return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-card/80 backdrop-blur-md">
+  return <header className="sticky top-0 z-50 w-full border-b border-border bg-card/80 backdrop-blur-md">
       <div className="container flex h-16 items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary">
-            <span className="text-xl font-bold text-primary-foreground">H</span>
+          <div className="h-10 w-10 rounded-full text-destructive-foreground flex-row flex items-center justify-center bg-primary">
+            <span className="text-xl font-bold text-primary-foreground">​</span>
           </div>
           <span className="text-xl font-bold text-foreground">Hop-Inn</span>
         </Link>
@@ -31,7 +29,7 @@ const Header = () => {
         <div className="flex items-center gap-3">
           <Link to="/auth">
             <Button variant="ghost" size="icon">
-              <UserCircle className="h-5 w-5" />
+              <User className="h-5 w-5" />
             </Button>
           </Link>
           <Button variant="ghost" size="icon" className="md:hidden">
@@ -39,8 +37,6 @@ const Header = () => {
           </Button>
         </div>
       </div>
-    </header>
-  );
+    </header>;
 };
-
 export default Header;

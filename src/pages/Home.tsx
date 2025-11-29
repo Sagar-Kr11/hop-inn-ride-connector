@@ -6,10 +6,8 @@ import Header from "@/components/Header";
 import MapPlaceholder from "@/components/MapPlaceholder";
 import { Link } from "react-router-dom";
 import heroAuto from "@/assets/hero-auto.jpg";
-
 const Home = () => {
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       <Header />
       
       {/* Hero Section */}
@@ -18,17 +16,17 @@ const Home = () => {
         <div className="container px-4 py-12 md:py-16 relative">
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div className="space-y-6">
-              <div className="inline-block px-4 py-2 bg-primary/10 rounded-full text-sm font-medium text-primary">
+              <div className="inline-block py-2 rounded-full text-sm font-medium bg-[#ffc300]/[0.71] px-[19px] text-card-foreground">
                 Shared Auto Rides
               </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight">
                 Your Ride,<br />
                 <span className="text-primary">Your Way</span>
               </h1>
-              <p className="text-lg text-muted-foreground max-w-lg">
+              <p className="text-lg text-muted-foreground max-w-lg text-justify font-normal">
                 Share auto rides on your route. Save money, reduce traffic, and travel together with Hop-Inn.
               </p>
-              <div className="flex flex-wrap gap-4">
+              <div className="flex-wrap gap-4 items-center justify-start flex flex-row">
                 <Link to="/booking">
                   <Button variant="hero" size="lg">
                     Book a Ride
@@ -42,7 +40,7 @@ const Home = () => {
               </div>
             </div>
             <div className="relative h-[300px] md:h-[400px] rounded-2xl overflow-hidden shadow-2xl">
-              <img src={heroAuto} alt="Yellow auto rickshaw on Indian street" className="w-full h-full object-cover" />
+              <img alt="Yellow auto rickshaw on Indian street" className="w-full h-full border-muted border-dashed object-cover" src="/lovable-uploads/f110c657-f73e-420c-8a77-8f7b7fcda164.png" />
             </div>
           </div>
         </div>
@@ -53,29 +51,23 @@ const Home = () => {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Search Section */}
-            <Card className="p-6 shadow-lg border-2">
+            <Card className="p-6 border-2 px-[23px] rounded-md shadow-md my-0 text-secondary-foreground bg-accent">
               <h2 className="text-2xl font-bold mb-4 text-foreground">Where to?</h2>
               <div className="space-y-4">
                 <div className="flex gap-2">
                   <div className="flex-1 relative">
                     <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input 
-                      placeholder="Enter pickup location" 
-                      className="pl-10 h-12 rounded-xl border-2"
-                    />
+                    <Input placeholder="Enter pickup location" className="pl-10 h-12 rounded-xl border-2" />
                   </div>
                 </div>
                 <div className="flex gap-2">
                   <div className="flex-1 relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input 
-                      placeholder="Enter destination" 
-                      className="pl-10 h-12 rounded-xl border-2"
-                    />
+                    <Input placeholder="Enter destination" className="pl-10 h-12 rounded-xl border-2" />
                   </div>
                 </div>
                 <Link to="/booking" className="block">
-                  <Button className="w-full" size="lg">
+                  <Button size="lg" className="w-full bg-[#39b275] text-base font-sans font-semibold border-muted text-popover">
                     Find Shared Auto
                   </Button>
                 </Link>
@@ -166,8 +158,6 @@ const Home = () => {
           </div>
         </div>
       </main>
-    </div>
-  );
+    </div>;
 };
-
 export default Home;
