@@ -182,7 +182,7 @@ const Events = () => {
         {/* Info Section */}
         <Card className="mt-8 p-8 bg-gradient-to-br from-primary/5 to-secondary/5">
           <h3 className="text-2xl font-bold mb-4">How Event Rides Work</h3>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-4 gap-6">
             <div className="space-y-2">
               <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-2xl mb-3">
                 🎯
@@ -208,6 +208,15 @@ const Events = () => {
               <h4 className="font-semibold">Save & Enjoy</h4>
               <p className="text-sm text-muted-foreground">
                 Split the fare, arrive together, and enjoy the event hassle-free
+              </p>
+            </div>
+            <div className="space-y-2">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-2xl mb-3">
+                🤝
+              </div>
+              <h4 className="font-semibold">Connect with People</h4>
+              <p className="text-sm text-muted-foreground">
+                Create a random group and enjoy your travel back n forth
               </p>
             </div>
           </div>
