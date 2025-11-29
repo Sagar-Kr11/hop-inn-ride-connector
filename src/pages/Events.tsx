@@ -5,55 +5,24 @@ import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import eventIllustration from "@/assets/event-illustration.jpg";
 import { Link } from "react-router-dom";
-
-const events = [
-  {
-    id: 1,
-    name: "Ganesh Chaturthi Festival",
-    location: "Shaniwar Wada, Pune",
-    date: "Sep 19, 2024",
-    time: "6:00 PM - 11:00 PM",
-    attendees: 5000,
-    distance: "2.5 km",
-    availableAutos: 24,
-    category: "Festival",
-  },
-  {
-    id: 2,
-    name: "Sunburn Electronic Music Festival",
-    location: "Goa Lawns, Pune",
-    date: "Sep 22-24, 2024",
-    time: "4:00 PM onwards",
-    attendees: 8000,
-    distance: "5.2 km",
-    availableAutos: 38,
-    category: "Concert",
-  },
-  {
-    id: 3,
-    name: "Street Food Festival",
-    location: "JM Road Market",
-    date: "Sep 20, 2024",
-    time: "5:00 PM - 10:00 PM",
-    attendees: 3000,
-    distance: "1.8 km",
-    availableAutos: 15,
-    category: "Food",
-  },
-  {
-    id: 4,
-    name: "Diwali Bazaar",
-    location: "FC Road",
-    date: "Oct 10-12, 2024",
-    time: "10:00 AM - 10:00 PM",
-    attendees: 6000,
-    distance: "3.1 km",
-    availableAutos: 28,
-    category: "Market",
-  },
-];
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
 const Events = () => {
+  const { data: events, isLoading } = useQuery({
+    queryKey: ["events"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("events")
+        .select("*")
+        .gte("event_date", new Date().toISOString())
+        .order("event_date", { ascending: true });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -94,7 +63,7 @@ const Events = () => {
         {/* Stats */}
         <div className="grid md:grid-cols-4 gap-4 mb-8">
           <Card className="p-4 text-center">
-            <div className="text-3xl font-bold text-primary mb-1">24</div>
+            <div className="text-3xl font-bold text-primary mb-1">{events?.length || 0}</div>
             <div className="text-sm text-muted-foreground">Active Events</div>
           </Card>
           <Card className="p-4 text-center">
@@ -119,65 +88,84 @@ const Events = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {events.map((event) => (
-            <Card key={event.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="p-6 space-y-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <Badge className="mb-3">{event.category}</Badge>
-                    <h3 className="text-xl font-bold mb-2">{event.name}</h3>
-                    <div className="space-y-2 text-sm text-muted-foreground">
-                      <p className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-primary" />
-                        {event.location} • {event.distance} away
-                      </p>
-                      <p className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-primary" />
-                        {event.date}
-                      </p>
-                      <p className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-primary" />
-                        {event.time}
-                      </p>
-                      <p className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-primary" />
-                        {event.attendees.toLocaleString()} expected attendees
-                      </p>
-                    </div>
+        {isLoading ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Loading events...</p>
+          </div>
+        ) : !events || events.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No upcoming events found</p>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-6">
+            {events.map((event) => {
+              const eventDate = new Date(event.event_date);
+              const formattedDate = format(eventDate, "MMM dd, yyyy");
+              const formattedTime = format(eventDate, "h:mm a");
+              
+              return (
+              <Card key={event.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                {event.image_url && (
+                  <div className="h-48 overflow-hidden">
+                    <img 
+                      src={event.image_url} 
+                      alt={event.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                </div>
-
-                <div className="pt-4 border-t border-border">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <div className="text-2xl font-bold text-secondary">
-                        {event.availableAutos}
+                )}
+                <div className="p-6 space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold mb-2">{event.name}</h3>
+                      {event.description && (
+                        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                          {event.description}
+                        </p>
+                      )}
+                      <div className="space-y-2 text-sm text-muted-foreground">
+                        <p className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-primary" />
+                          {event.location_name}
+                        </p>
+                        <p className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-primary" />
+                          {formattedDate}
+                        </p>
+                        <p className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-primary" />
+                          {formattedTime}
+                        </p>
                       </div>
-                      <div className="text-xs text-muted-foreground">Autos Available</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold text-primary">High Demand</div>
-                      <div className="text-xs text-muted-foreground">Book early</div>
                     </div>
                   </div>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <Link to="/booking" className="w-full">
-                      <Button variant="secondary" className="w-full">
-                        Go to Event
+
+                  <div className="pt-4 border-t border-border">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-right">
+                        <div className="text-sm font-semibold text-primary">High Demand</div>
+                        <div className="text-xs text-muted-foreground">Book early</div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <Link to="/booking" className="w-full">
+                        <Button variant="secondary" className="w-full">
+                          Go to Event
+                        </Button>
+                      </Link>
+                      <Button variant="outline" className="w-full">
+                        View Details
+                        <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
-                    </Link>
-                    <Button variant="outline" className="w-full">
-                      View Details
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+              </Card>
+            );
+          })}
+          </div>
+        )}
 
         {/* Info Section */}
         <Card className="mt-8 p-8 bg-gradient-to-br from-primary/5 to-secondary/5">
