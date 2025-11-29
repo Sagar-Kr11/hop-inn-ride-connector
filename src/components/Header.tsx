@@ -16,7 +16,8 @@ const Header = () => {
             Home
           </Link>
           <Link to="/driver" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
-            Drive with Us
+            Dashboard
+  
           </Link>
           <Link to="/events" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
             Events
