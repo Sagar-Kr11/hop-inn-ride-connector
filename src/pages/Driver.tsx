@@ -1,10 +1,14 @@
-import { Power, Route, IndianRupee, Users, TrendingUp, MapPin } from "lucide-react";
+import { Power, Route, IndianRupee, Users, TrendingUp, MapPin, Calendar, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import Header from "@/components/Header";
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 const nearbyRequests = [{
   id: 1,
   passenger: "Priya S.",
