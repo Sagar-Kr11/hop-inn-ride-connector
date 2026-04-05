@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Link } from "react-router-dom";
+import heroImage from "@/assets/hero-auto-rickshaw.jpg";
 import phoneMockup from "@/assets/phone-mockup.png";
 
 const marqueeItems = [
