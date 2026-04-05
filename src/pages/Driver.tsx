@@ -33,6 +33,21 @@ const nearbyRequests = [{
 }];
 const Driver = () => {
   const [isOnline, setIsOnline] = useState(true);
+
+  const { data: upcomingEvents } = useQuery({
+    queryKey: ["dashboard-events"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("events")
+        .select("*")
+        .gte("event_date", new Date().toISOString())
+        .order("event_date", { ascending: true })
+        .limit(3);
+      if (error) throw error;
+      return data;
+    },
+  });
+
   return <div className="min-h-screen bg-background">
       <Header />
 
