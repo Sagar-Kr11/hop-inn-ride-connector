@@ -207,18 +207,55 @@ const Driver = () => {
               </ul>
             </Card>
 
-            {/* Event Notification */}
-            <Card className="p-6 bg-gradient-to-br from-accent/20 to-primary/20 border-2 border-primary">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-2xl">🎉</span>
-                <h3 className="font-semibold">High Demand Alert</h3>
+            {/* Hyperlocal Events Preview */}
+            <Card className="p-6 shadow-lg border-2 border-primary/20">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold text-lg">Events Near You</h3>
+                </div>
+                <Link to="/events">
+                  <Button variant="ghost" size="sm" className="text-primary">
+                    View All <ArrowRight className="ml-1 h-4 w-4" />
+                  </Button>
+                </Link>
               </div>
-              <p className="text-sm mb-3">
-                Sunburn Festival happening at Goa Lawns. High passenger demand expected!
-              </p>
-              <Button variant="secondary" size="sm" className="w-full">
-                Set Event Route
-              </Button>
+              {upcomingEvents && upcomingEvents.length > 0 ? (
+                <div className="space-y-3">
+                  {upcomingEvents.map((event) => (
+                    <div key={event.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
+                      {event.image_url && (
+                        <img
+                          src={event.image_url}
+                          alt={event.name}
+                          className="h-12 w-12 rounded-lg object-cover"
+                          loading="lazy"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm truncate">{event.name}</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {event.location_name}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-xs font-semibold text-primary">
+                          {format(new Date(event.event_date), "MMM dd")}
+                        </p>
+                        <p className="text-xs text-muted-foreground">High Demand</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No upcoming events nearby</p>
+              )}
+              <Link to="/events" className="block mt-4">
+                <Button variant="secondary" size="sm" className="w-full">
+                  Set Event Route
+                </Button>
+              </Link>
             </Card>
           </div>
         </div>
