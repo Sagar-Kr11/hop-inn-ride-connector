@@ -121,3 +121,17 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Marquee animation */
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-33.33%);
+  }
+}
+
+.marquee-track {
+  animation: marquee-scroll 20s linear infinite;
+}

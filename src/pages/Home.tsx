@@ -1,163 +1,199 @@
-import { Search, Calendar, History, Shield, MapPin, Clock } from "lucide-react";
+import { DollarSign, Zap, Users, Shield, MapPin, Clock, Star, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import Header from "@/components/Header";
-import MapPlaceholder from "@/components/MapPlaceholder";
 import { Link } from "react-router-dom";
-import heroAuto from "@/assets/hero-auto.jpg";
+import heroImage from "@/assets/hero-auto-rickshaw.jpg";
+
+const marqueeItems = [
+  "SAVE MONEY",
+  "REDUCE TRAFFIC",
+  "TRAVEL TOGETHER",
+  "ECO-FRIENDLY",
+  "CONVENIENT",
+  "SAFE",
+];
+
 const Home = () => {
-  return <div className="min-h-screen bg-background">
+  return (
+    <div className="min-h-screen bg-background">
       <Header />
-      
+
       {/* Hero Section */}
-      <section className="relative overflow-hidden border-b border-border">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5" />
-        <div className="container px-4 py-12 md:py-16 relative">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div className="space-y-6">
-              <div className="inline-block py-2 rounded-full text-sm font-medium bg-[#ffc300]/[0.71] px-[19px] text-card-foreground">
+      <section className="relative overflow-hidden">
+        <div className="relative min-h-[500px] md:min-h-[600px]">
+          {/* Background image */}
+          <div className="absolute inset-0">
+            <img
+              src={heroImage}
+              alt="Hop-Inn auto rickshaw with happy passengers on Indian street"
+              className="w-full h-full object-cover"
+              width={1920}
+              height={1080}
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-transparent" />
+          </div>
+
+          {/* Hero content */}
+          <div className="container px-4 py-16 md:py-24 relative z-10">
+            <div className="max-w-xl space-y-6">
+              <div className="inline-block px-5 py-2 rounded-full text-sm font-semibold bg-primary text-primary-foreground">
                 Shared Auto Rides
               </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight">
-                Your Ride,<br />
-                <span className="text-primary">Your Way</span>
+                Your Ride,{" "}
+                <span className="text-primary underline decoration-primary underline-offset-4">
+                  Your Way
+                </span>
               </h1>
-              <p className="text-lg text-muted-foreground max-w-lg text-justify font-normal">
-                Share auto rides on your route. Save money, reduce traffic, and travel together with Hop-Inn.
+              <p className="text-lg text-muted-foreground max-w-lg">
+                Share auto rides on your route. Save money, reduce traffic, and
+                travel together with Hop-Inn.
               </p>
-              <div className="flex-wrap gap-4 items-center justify-start flex flex-row">
+              <div className="flex flex-wrap gap-4">
                 <Link to="/booking">
-                  <Button variant="hero" size="lg">
+                  <Button variant="hero" size="lg" className="text-base font-semibold px-8">
                     Book a Ride
                   </Button>
                 </Link>
                 <Link to="/driver">
-                  <Button variant="secondary" size="lg">
+                  <Button variant="secondary" size="lg" className="text-base font-semibold px-8">
                     Drive with Us
                   </Button>
                 </Link>
               </div>
             </div>
-            <div className="relative h-[300px] md:h-[400px] rounded-2xl overflow-hidden shadow-2xl">
-              <img alt="Yellow auto rickshaw on Indian street" className="w-full h-full border-muted border-dashed object-cover" src="/lovable-uploads/f110c657-f73e-420c-8a77-8f7b7fcda164.png" />
-            </div>
           </div>
         </div>
       </section>
 
-      <main className="container px-4 py-8">
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Search Section */}
-            <Card className="p-6 border-2 px-[23px] rounded-md shadow-md my-0 text-secondary-foreground bg-accent">
-              <h2 className="text-2xl font-bold mb-4 text-foreground">Where to?</h2>
-              <div className="space-y-4">
-                <div className="flex gap-2">
-                  <div className="flex-1 relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input placeholder="Enter pickup location" className="pl-10 h-12 rounded-xl border-2" />
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input placeholder="Enter destination" className="pl-10 h-12 rounded-xl border-2" />
-                  </div>
-                </div>
-                <Link to="/booking" className="block">
-                  <Button size="lg" className="w-full bg-[#39b275] text-base font-sans font-semibold border-muted text-popover">
-                    Find Shared Auto
-                  </Button>
-                </Link>
-              </div>
-            </Card>
+      {/* Scrolling Marquee Banner */}
+      <section className="bg-foreground text-background py-3 overflow-hidden">
+        <div className="marquee-track flex whitespace-nowrap">
+          {[...Array(3)].map((_, setIndex) =>
+            marqueeItems.map((item, i) => (
+              <span key={`${setIndex}-${i}`} className="mx-4 text-sm font-bold tracking-widest uppercase flex items-center gap-4">
+                {item}
+                <span className="text-primary">•</span>
+              </span>
+            ))
+          )}
+        </div>
+      </section>
 
-            {/* Map View */}
-            <Card className="p-4 shadow-lg">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-lg">Autos Near You</h3>
-                <span className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Clock className="h-4 w-4" />
-                  Live
-                </span>
-              </div>
-              <MapPlaceholder className="h-[400px]" />
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="text-center p-3 bg-muted/50 rounded-lg">
-                  <div className="font-bold text-2xl text-primary">12</div>
-                  <div className="text-sm text-muted-foreground">Autos Available</div>
-                </div>
-                <div className="text-center p-3 bg-muted/50 rounded-lg">
-                  <div className="font-bold text-2xl text-secondary">2 min</div>
-                  <div className="text-sm text-muted-foreground">Avg. Wait Time</div>
-                </div>
-              </div>
-            </Card>
-          </div>
+      {/* Why Choose Hop-Inn */}
+      <section className="container px-4 py-16">
+        <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-10">
+          Why Choose Hop-Inn?
+        </h2>
+        <div className="grid md:grid-cols-3 gap-6">
+          <Card className="p-8 border-2 border-border hover:shadow-lg transition-shadow">
+            <div className="h-14 w-14 rounded-2xl bg-primary/15 flex items-center justify-center mb-5">
+              <DollarSign className="h-7 w-7 text-primary" />
+            </div>
+            <h3 className="text-xl font-bold text-foreground mb-3">Affordable</h3>
+            <p className="text-muted-foreground">
+              Share auto rides on your route. Save money, reduce traffic, and travel together affordably.
+            </p>
+          </Card>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Quick Actions */}
-            <Card className="p-6 shadow-lg">
-              <h3 className="font-semibold text-lg mb-4">Quick Actions</h3>
-              <div className="space-y-3">
-                <Link to="/events">
-                  <Button variant="outline" className="w-full justify-start h-auto py-4" size="lg">
-                    <Calendar className="mr-3 h-5 w-5" />
-                    <div className="text-left">
-                      <div className="font-semibold">Events Near You</div>
-                      <div className="text-xs text-muted-foreground">Find shared rides to events</div>
-                    </div>
-                  </Button>
-                </Link>
-                <Link to="/history">
-                  <Button variant="outline" className="w-full justify-start h-auto py-4" size="lg">
-                    <History className="mr-3 h-5 w-5" />
-                    <div className="text-left">
-                      <div className="font-semibold">Ride History</div>
-                      <div className="text-xs text-muted-foreground">View past trips</div>
-                    </div>
-                  </Button>
-                </Link>
-                <Link to="/safety">
-                  <Button variant="outline" className="w-full justify-start h-auto py-4 border-destructive/50 hover:bg-destructive/10" size="lg">
-                    <Shield className="mr-3 h-5 w-5 text-destructive" />
-                    <div className="text-left">
-                      <div className="font-semibold text-destructive">Safety & SOS</div>
-                      <div className="text-xs text-muted-foreground">Emergency support</div>
-                    </div>
-                  </Button>
-                </Link>
-              </div>
-            </Card>
+          <Card className="p-8 border-2 border-border hover:shadow-lg transition-shadow">
+            <div className="h-14 w-14 rounded-2xl bg-primary/15 flex items-center justify-center mb-5">
+              <Zap className="h-7 w-7 text-primary" />
+            </div>
+            <h3 className="text-xl font-bold text-foreground mb-3">Efficient</h3>
+            <p className="text-muted-foreground">
+              Efficient routing converts traffic, and travel traffic accessible for everyone on the go.
+            </p>
+          </Card>
 
-            {/* Info Card */}
-            <Card className="p-6 bg-gradient-to-br from-primary/10 to-secondary/10 border-2 border-primary/20">
-              <h3 className="font-semibold text-lg mb-2">Why Hop-Inn?</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-start gap-2">
-                  <span className="text-primary mt-1">✓</span>
-                  <span>Share rides on your route and save up to 50%</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary mt-1">✓</span>
-                  <span>Verified drivers with auto permits</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary mt-1">✓</span>
-                  <span>Live tracking and in-app support</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary mt-1">✓</span>
-                  <span>Event-based rides to festivals & concerts</span>
-                </li>
-              </ul>
-            </Card>
+          <Card className="p-8 border-2 border-border hover:shadow-lg transition-shadow">
+            <div className="h-14 w-14 rounded-2xl bg-primary/15 flex items-center justify-center mb-5">
+              <Users className="h-7 w-7 text-primary" />
+            </div>
+            <h3 className="text-xl font-bold text-foreground mb-3">Community-Driven</h3>
+            <p className="text-muted-foreground">
+              Community-driven to support Indian community and communities, building connections through travel.
+            </p>
+          </Card>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="bg-card border-y border-border">
+        <div className="container px-4 py-16">
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-10">
+            How It Works
+          </h2>
+          <div className="grid md:grid-cols-4 gap-8">
+            {[
+              { step: "1", icon: MapPin, title: "Enter Your Route", desc: "Tell us your pickup and drop-off locations" },
+              { step: "2", icon: Users, title: "Get Matched", desc: "We find co-riders heading your way" },
+              { step: "3", icon: Clock, title: "Ride Together", desc: "Share an auto and split the fare" },
+              { step: "4", icon: Star, title: "Rate & Save", desc: "Rate your ride and enjoy savings" },
+            ].map((item) => (
+              <div key={item.step} className="text-center space-y-3">
+                <div className="h-16 w-16 rounded-full bg-primary/15 flex items-center justify-center mx-auto mb-4">
+                  <item.icon className="h-7 w-7 text-primary" />
+                </div>
+                <div className="text-sm font-bold text-primary">Step {item.step}</div>
+                <h4 className="text-lg font-bold text-foreground">{item.title}</h4>
+                <p className="text-sm text-muted-foreground">{item.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
-      </main>
-    </div>;
+      </section>
+
+      {/* CTA Section */}
+      <section className="container px-4 py-16">
+        <Card className="p-10 md:p-16 bg-gradient-to-br from-primary/10 to-secondary/10 border-2 border-primary/20 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+            Ready to Hop In?
+          </h2>
+          <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
+            Join thousands of riders saving money and reducing traffic. Book your first shared auto ride today.
+          </p>
+          <div className="flex flex-wrap justify-center gap-4">
+            <Link to="/booking">
+              <Button variant="hero" size="lg" className="text-base font-semibold px-8">
+                Book a Ride
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+            <Link to="/events">
+              <Button variant="outline" size="lg" className="text-base font-semibold px-8">
+                Browse Events
+              </Button>
+            </Link>
+          </div>
+        </Card>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-border bg-card">
+        <div className="container px-4 py-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+                <span className="text-sm font-bold text-primary-foreground">H</span>
+              </div>
+              <span className="font-bold text-foreground">Hop-Inn</span>
+            </div>
+            <div className="flex gap-6 text-sm text-muted-foreground">
+              <Link to="/safety" className="hover:text-foreground transition-colors">Safety</Link>
+              <Link to="/history" className="hover:text-foreground transition-colors">History</Link>
+              <Link to="/events" className="hover:text-foreground transition-colors">Events</Link>
+              <Link to="/driver" className="hover:text-foreground transition-colors">Drive with Us</Link>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              © 2026 Hop-Inn. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
 };
+
 export default Home;
