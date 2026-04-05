@@ -2,6 +2,7 @@ import { DollarSign, Zap, Users, Shield, MapPin, Clock, Star, ArrowRight, Smartp
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import { Link } from "react-router-dom";
 import heroImage from "@/assets/hero-auto-rickshaw.jpg";
 import phoneMockup from "@/assets/phone-mockup.png";
@@ -226,28 +227,7 @@ const Home = () => {
         </Card>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border bg-card">
-        <div className="container px-4 py-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-                <span className="text-sm font-bold text-primary-foreground">H</span>
-              </div>
-              <span className="font-bold text-foreground">Hop-Inn</span>
-            </div>
-            <div className="flex gap-6 text-sm text-muted-foreground">
-              <Link to="/safety" className="hover:text-foreground transition-colors">Safety</Link>
-              <Link to="/history" className="hover:text-foreground transition-colors">History</Link>
-              <Link to="/events" className="hover:text-foreground transition-colors">Events</Link>
-              <Link to="/driver" className="hover:text-foreground transition-colors">Drive with Us</Link>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              © 2026 Hop-Inn. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };
