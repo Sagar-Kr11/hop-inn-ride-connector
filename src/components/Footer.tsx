@@ -4,6 +4,14 @@ const cityNames = [
   "INDORE", "BHOPAL", "PUNE", "NAGPUR", "JAIPUR", "SURAT", "AHMEDABAD", "LUCKNOW",
 ];
 
+// 👇 EDIT THESE URLs to link your social media accounts
+const socialLinks = {
+  email: "hello@hopinn.in",
+  twitter: "https://twitter.com/your-handle",
+  instagram: "https://instagram.com/your-handle",
+  linkedin: "https://linkedin.com/company/your-page",
+};
+
 const Footer = () => {
   return (
     <footer className="bg-foreground text-background">
@@ -61,19 +69,34 @@ const Footer = () => {
           <div>
             <h4 className="text-sm font-bold tracking-widest text-primary mb-6">CONNECT</h4>
             <a
-              href="mailto:hello@hopinn.in"
+              href={`mailto:${socialLinks.email}`}
               className="block text-sm text-background/60 hover:text-background transition-colors mb-6"
             >
-              hello@hopinn.in
+              {socialLinks.email}
             </a>
             <div className="flex gap-6">
-              <a href="#" className="text-sm text-background/60 hover:text-background transition-colors tracking-wide uppercase">
+              <a
+                href={socialLinks.twitter}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-background/60 hover:text-background transition-colors tracking-wide uppercase"
+              >
                 Twitter
               </a>
-              <a href="#" className="text-sm text-background/60 hover:text-background transition-colors tracking-wide uppercase">
+              <a
+                href={socialLinks.instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-background/60 hover:text-background transition-colors tracking-wide uppercase"
+              >
                 Instagram
               </a>
-              <a href="#" className="text-sm text-background/60 hover:text-background transition-colors tracking-wide uppercase">
+              <a
+                href={socialLinks.linkedin}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-background/60 hover:text-background transition-colors tracking-wide uppercase"
+              >
                 LinkedIn
               </a>
             </div>
