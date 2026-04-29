@@ -66,12 +66,53 @@ const Driver = () => {
       <main className="container px-4 py-6">
         {/* Status Header */}
         <Card className="p-6 mb-6 shadow-lg bg-[#face4a]">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold mb-2">Driver Dashboard</h1>
               <p className="text-muted-foreground">Welcome back, Rajesh!</p>
             </div>
             <div className="flex items-center gap-4">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    size="lg"
+                    className="font-bold shadow-lg animate-pulse"
+                  >
+                    <AlertTriangle className="h-5 w-5" />
+                    SOS Alert
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                      <Shield className="h-5 w-5 text-destructive" />
+                      Send Emergency Alert?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will immediately notify Hop-Inn safety team, share your live location,
+                      and alert local emergency contacts. Use only in case of a real emergency.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() =>
+                        toast({
+                          title: "🚨 Emergency Alert Sent",
+                          description:
+                            "Safety team notified. Help is on the way. Stay calm.",
+                        })
+                      }
+                      className="bg-destructive hover:bg-destructive/90"
+                    >
+                      <Phone className="h-4 w-4" />
+                      Send Alert
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
               <Label htmlFor="online-toggle" className="font-semibold">
                 {isOnline ? "Online" : "Offline"}
               </Label>
