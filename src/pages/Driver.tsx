@@ -1,8 +1,20 @@
-import { Power, Route, IndianRupee, Users, TrendingUp, MapPin, Calendar, ArrowRight } from "lucide-react";
+import { Power, Route, IndianRupee, Users, TrendingUp, MapPin, Calendar, ArrowRight, AlertTriangle, Phone, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import { useState } from "react";
 import { Link } from "react-router-dom";
