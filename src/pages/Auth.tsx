@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
+import logoAsset from "@/assets/hop-inn-logo.png.asset.json";
 
 const Auth = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -28,9 +29,7 @@ const Auth = () => {
 
         <Card className="p-8 shadow-2xl">
           <div className="text-center mb-6">
-            <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-primary mb-4">
-              <span className="text-3xl font-bold text-primary-foreground">H</span>
-            </div>
+            <img src={logoAsset.url} alt="Hop-Inn logo" className="mx-auto mb-4 h-16 w-16 rounded-full object-cover" />
             <h1 className="text-2xl font-bold mb-2">Welcome to Hop-Inn</h1>
             <p className="text-muted-foreground">Login or create your account</p>
           </div>

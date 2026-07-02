@@ -1,13 +1,12 @@
 import { Menu, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import logoAsset from "@/assets/hop-inn-logo.png.asset.json";
 const Header = () => {
   return <header className="sticky top-0 z-50 w-full border-b border-border bg-card/80 backdrop-blur-md">
       <div className="container flex h-16 items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-2">
-          <div className="h-10 w-10 rounded-full text-destructive-foreground flex-row flex items-center justify-center bg-primary">
-            <span className="text-xl font-bold text-primary-foreground">​</span>
-          </div>
+          <img src={logoAsset.url} alt="Hop-Inn logo" className="h-10 w-10 rounded-full object-cover" />
           <span className="text-xl font-bold text-foreground">Hop-Inn</span>
         </Link>
 
