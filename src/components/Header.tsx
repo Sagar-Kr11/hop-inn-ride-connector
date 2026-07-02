@@ -1,6 +1,7 @@
 import { Menu, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import logoAsset from "@/assets/hop-inn-logo.png.asset.json";
 const Header = () => {
   return <header className="sticky top-0 z-50 w-full border-b border-border bg-card/80 backdrop-blur-md">
       <div className="container flex h-16 items-center justify-between px-4">
