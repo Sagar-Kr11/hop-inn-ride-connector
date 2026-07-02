@@ -4,17 +4,57 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import logoAsset from "@/assets/hop-inn-logo.png.asset.json";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+
+const normalizePhone = (raw: string) => {
+  const trimmed = raw.replace(/\s|-/g, "");
+  if (/^\+\d{7,15}$/.test(trimmed)) return trimmed;
+  if (/^\d{10}$/.test(trimmed)) return `+91${trimmed}`;
+  return null;
+};
 
 const Auth = () => {
+  const navigate = useNavigate();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [name, setName] = useState("");
+  const [otp, setOtp] = useState("");
   const [showOtp, setShowOtp] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
-  const handleSendOtp = () => {
+  const handleSendOtp = async () => {
+    const phone = normalizePhone(phoneNumber);
+    if (!phone) {
+      toast({ title: "Invalid phone", description: "Use 10-digit Indian number or +country format.", variant: "destructive" });
+      return;
+    }
+    setSending(true);
+    const { data, error } = await supabase.functions.invoke("send-otp", { body: { phone } });
+    setSending(false);
+    if (error || (data as any)?.error) {
+      toast({ title: "Could not send OTP", description: (data as any)?.error || error?.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "OTP sent", description: `Code sent via SMS to ${phone}` });
     setShowOtp(true);
+  };
+
+  const handleVerify = async () => {
+    const phone = normalizePhone(phoneNumber);
+    if (!phone || otp.length < 4) return;
+    setVerifying(true);
+    const { data, error } = await supabase.functions.invoke("verify-otp", { body: { phone, code: otp } });
+    setVerifying(false);
+    if (error || (data as any)?.error) {
+      toast({ title: "Verification failed", description: (data as any)?.error || error?.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Welcome to Hop-Inn!", description: `Verified ${phone}` });
+    navigate("/");
   };
 
   return (
@@ -45,13 +85,7 @@ const Auth = () => {
                 <>
                   <div>
                     <Label htmlFor="name">Full Name</Label>
-                    <Input
-                      id="name"
-                      placeholder="Enter your name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="mt-2"
-                    />
+                    <Input id="name" placeholder="Enter your name" value={name} onChange={(e) => setName(e.target.value)} className="mt-2" />
                   </div>
                   <div>
                     <Label htmlFor="phone">Phone Number</Label>
@@ -64,7 +98,8 @@ const Auth = () => {
                       className="mt-2"
                     />
                   </div>
-                  <Button className="w-full" size="lg" onClick={handleSendOtp}>
+                  <Button className="w-full" size="lg" onClick={handleSendOtp} disabled={sending}>
+                    {sending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Send OTP
                   </Button>
                 </>
@@ -75,20 +110,20 @@ const Auth = () => {
                     <Input
                       id="otp"
                       type="text"
-                      placeholder="Enter 6-digit OTP"
+                      placeholder="6-digit code"
                       maxLength={6}
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
                       className="mt-2 text-center text-2xl tracking-widest"
                     />
+                    <p className="text-xs text-muted-foreground mt-2">Sent to {normalizePhone(phoneNumber)}</p>
                   </div>
-                  <Button className="w-full" size="lg">
+                  <Button className="w-full" size="lg" onClick={handleVerify} disabled={verifying || otp.length < 6}>
+                    {verifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Verify & Continue
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    className="w-full"
-                    onClick={() => setShowOtp(false)}
-                  >
-                    Resend OTP
+                  <Button variant="ghost" className="w-full" onClick={() => { setShowOtp(false); setOtp(""); }}>
+                    Change number / Resend
                   </Button>
                 </>
               )}
@@ -97,40 +132,21 @@ const Auth = () => {
             <TabsContent value="driver" className="space-y-4">
               <div>
                 <Label htmlFor="driver-name">Full Name</Label>
-                <Input
-                  id="driver-name"
-                  placeholder="Enter your name"
-                  className="mt-2"
-                />
+                <Input id="driver-name" placeholder="Enter your name" className="mt-2" />
               </div>
               <div>
                 <Label htmlFor="driver-phone">Phone Number</Label>
-                <Input
-                  id="driver-phone"
-                  type="tel"
-                  placeholder="+91 XXXXX XXXXX"
-                  className="mt-2"
-                />
+                <Input id="driver-phone" type="tel" placeholder="+91 XXXXX XXXXX" className="mt-2" />
               </div>
               <div>
                 <Label htmlFor="vehicle">Vehicle Number</Label>
-                <Input
-                  id="vehicle"
-                  placeholder="MH XX XX XXXX"
-                  className="mt-2"
-                />
+                <Input id="vehicle" placeholder="MH XX XX XXXX" className="mt-2" />
               </div>
               <div>
                 <Label htmlFor="permit">Auto Permit Number</Label>
-                <Input
-                  id="permit"
-                  placeholder="Enter permit number"
-                  className="mt-2"
-                />
+                <Input id="permit" placeholder="Enter permit number" className="mt-2" />
               </div>
-              <Button className="w-full" size="lg">
-                Register as Driver
-              </Button>
+              <Button className="w-full" size="lg">Register as Driver</Button>
             </TabsContent>
           </Tabs>
 
