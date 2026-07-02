@@ -226,18 +226,32 @@ const Driver = () => {
             <Card className="p-6 shadow-lg">
               <h3 className="font-semibold text-lg mb-4">Quick Actions</h3>
               <div className="space-y-3">
-                <Button variant="outline" className="w-full justify-start" size="lg">
-                  <Route className="mr-3 h-5 w-5" />
-                  Set Route
-                </Button>
-                <Button variant="outline" className="w-full justify-start" size="lg">
+                <Link to="/booking">
+                  <Button variant="outline" className="w-full justify-start" size="lg">
+                    <Route className="mr-3 h-5 w-5" />
+                    Set Route
+                  </Button>
+                </Link>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  size="lg"
+                  onClick={() =>
+                    toast({
+                      title: "Passengers",
+                      description: "No active passengers right now. New requests appear on the right.",
+                    })
+                  }
+                >
                   <Users className="mr-3 h-5 w-5" />
                   View Passengers
                 </Button>
-                <Button variant="outline" className="w-full justify-start" size="lg">
-                  <IndianRupee className="mr-3 h-5 w-5" />
-                  Earnings Report
-                </Button>
+                <Link to="/history">
+                  <Button variant="outline" className="w-full justify-start" size="lg">
+                    <IndianRupee className="mr-3 h-5 w-5" />
+                    Earnings Report
+                  </Button>
+                </Link>
               </div>
             </Card>
 
