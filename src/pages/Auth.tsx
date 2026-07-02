@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
+import logoAsset from "@/assets/hop-inn-logo.png.asset.json";
 
 const Auth = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
