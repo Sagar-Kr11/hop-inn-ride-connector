@@ -2,11 +2,11 @@ import { useState } from "react";
 import { ArrowLeft, MapPin, Navigation, Star, Users, Clock, IndianRupee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import Header from "@/components/Header";
 import MapPlaceholder from "@/components/MapPlaceholder";
+import PlaceAutocomplete from "@/components/PlaceAutocomplete";
 import { Link, useNavigate } from "react-router-dom";
 
 const availableAutos = [
@@ -43,6 +43,8 @@ const Booking = () => {
   const navigate = useNavigate();
   const [rideType, setRideType] = useState("route");
   const [selectedAuto, setSelectedAuto] = useState<number | null>(null);
+  const [pickup, setPickup] = useState("MG Road, Pune");
+  const [destination, setDestination] = useState("Koregaon Park");
 
   return (
     <div className="min-h-screen bg-background">
@@ -66,27 +68,25 @@ const Booking = () => {
                 {/* Pickup */}
                 <div>
                   <Label className="text-sm font-medium mb-2 block">Pickup Location</Label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
-                    <Input 
-                      placeholder="Enter pickup" 
-                      defaultValue="MG Road, Pune"
-                      className="pl-10 h-12 rounded-xl"
-                    />
-                  </div>
+                  <PlaceAutocomplete
+                    value={pickup}
+                    onChange={setPickup}
+                    placeholder="Enter pickup"
+                    icon={<MapPin className="absolute left-3 top-3.5 h-5 w-5 text-primary z-10 pointer-events-none" />}
+                    bias={{ lat: 18.5204, lng: 73.8567 }}
+                  />
                 </div>
 
                 {/* Destination */}
                 <div>
                   <Label className="text-sm font-medium mb-2 block">Destination</Label>
-                  <div className="relative">
-                    <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary" />
-                    <Input 
-                      placeholder="Enter destination" 
-                      defaultValue="Koregaon Park"
-                      className="pl-10 h-12 rounded-xl"
-                    />
-                  </div>
+                  <PlaceAutocomplete
+                    value={destination}
+                    onChange={setDestination}
+                    placeholder="Enter destination"
+                    icon={<Navigation className="absolute left-3 top-3.5 h-5 w-5 text-secondary z-10 pointer-events-none" />}
+                    bias={{ lat: 18.5204, lng: 73.8567 }}
+                  />
                 </div>
 
                 {/* Ride Type */}
