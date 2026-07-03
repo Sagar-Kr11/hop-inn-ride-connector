@@ -43,6 +43,8 @@ const Booking = () => {
   const navigate = useNavigate();
   const [rideType, setRideType] = useState("route");
   const [selectedAuto, setSelectedAuto] = useState<number | null>(null);
+  const [pickup, setPickup] = useState("MG Road, Pune");
+  const [destination, setDestination] = useState("Koregaon Park");
 
   return (
     <div className="min-h-screen bg-background">
