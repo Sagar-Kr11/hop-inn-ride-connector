@@ -68,27 +68,25 @@ const Booking = () => {
                 {/* Pickup */}
                 <div>
                   <Label className="text-sm font-medium mb-2 block">Pickup Location</Label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
-                    <Input 
-                      placeholder="Enter pickup" 
-                      defaultValue="MG Road, Pune"
-                      className="pl-10 h-12 rounded-xl"
-                    />
-                  </div>
+                  <PlaceAutocomplete
+                    value={pickup}
+                    onChange={setPickup}
+                    placeholder="Enter pickup"
+                    icon={<MapPin className="absolute left-3 top-3.5 h-5 w-5 text-primary z-10 pointer-events-none" />}
+                    bias={{ lat: 18.5204, lng: 73.8567 }}
+                  />
                 </div>
 
                 {/* Destination */}
                 <div>
                   <Label className="text-sm font-medium mb-2 block">Destination</Label>
-                  <div className="relative">
-                    <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary" />
-                    <Input 
-                      placeholder="Enter destination" 
-                      defaultValue="Koregaon Park"
-                      className="pl-10 h-12 rounded-xl"
-                    />
-                  </div>
+                  <PlaceAutocomplete
+                    value={destination}
+                    onChange={setDestination}
+                    placeholder="Enter destination"
+                    icon={<Navigation className="absolute left-3 top-3.5 h-5 w-5 text-secondary z-10 pointer-events-none" />}
+                    bias={{ lat: 18.5204, lng: 73.8567 }}
+                  />
                 </div>
 
                 {/* Ride Type */}
