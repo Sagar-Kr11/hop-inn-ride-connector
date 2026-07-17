@@ -78,7 +78,7 @@ const Auth = () => {
       return;
     }
     toast({ title: "Welcome to Hop-Inn!", description: `Verified ${phone}` });
-    navigate("/");
+    navigate(next);
   };
 
   return (
