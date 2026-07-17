@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { auth, defineMcp } from "@lovable.dev/mcp-js";
 import listUpcomingEvents from "./tools/list-upcoming-events";
 import listMyRides from "./tools/list-my-rides";
