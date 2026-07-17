@@ -4,11 +4,18 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import logoAsset from "@/assets/hop-inn-logo.png.asset.json";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 import { toast } from "@/hooks/use-toast";
+
+const sanitizeNext = (raw: string | null): string => {
+  if (!raw) return "/";
+  if (!raw.startsWith("/") || raw.startsWith("//")) return "/";
+  return raw;
+};
 
 const normalizePhone = (raw: string) => {
   const trimmed = raw.replace(/\s|-/g, "");
@@ -19,12 +26,29 @@ const normalizePhone = (raw: string) => {
 
 const Auth = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const next = sanitizeNext(searchParams.get("next"));
   const [phoneNumber, setPhoneNumber] = useState("");
   const [name, setName] = useState("");
   const [otp, setOtp] = useState("");
   const [showOtp, setShowOtp] = useState(false);
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogle = async () => {
+    setGoogleLoading(true);
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: `${window.location.origin}${next}`,
+    });
+    if (result.error) {
+      setGoogleLoading(false);
+      toast({ title: "Google sign-in failed", description: result.error.message, variant: "destructive" });
+      return;
+    }
+    if (result.redirected) return;
+    navigate(next);
+  };
 
   const handleSendOtp = async () => {
     const phone = normalizePhone(phoneNumber);
@@ -54,7 +78,7 @@ const Auth = () => {
       return;
     }
     toast({ title: "Welcome to Hop-Inn!", description: `Verified ${phone}` });
-    navigate("/");
+    navigate(next);
   };
 
   return (
@@ -74,11 +98,22 @@ const Auth = () => {
             <p className="text-muted-foreground">Login or create your account</p>
           </div>
 
+          <Button variant="outline" className="w-full mb-4" onClick={handleGoogle} disabled={googleLoading}>
+            {googleLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Continue with Google
+          </Button>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-xs text-muted-foreground">or use phone</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+
           <Tabs defaultValue="passenger" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="passenger">Passenger</TabsTrigger>
               <TabsTrigger value="driver">Driver</TabsTrigger>
             </TabsList>
+
 
             <TabsContent value="passenger" className="space-y-4">
               {!showOtp ? (

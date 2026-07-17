@@ -12,6 +12,7 @@ import Auth from "./pages/Auth";
 import Safety from "./pages/Safety";
 import History from "./pages/History";
 import Ride from "./pages/Ride";
+import OAuthConsent from "./pages/OAuthConsent";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/safety" element={<Safety />} />
           <Route path="/history" element={<History />} />
           <Route path="/ride" element={<Ride />} />
+          <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
