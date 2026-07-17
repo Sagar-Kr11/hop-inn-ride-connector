@@ -98,11 +98,22 @@ const Auth = () => {
             <p className="text-muted-foreground">Login or create your account</p>
           </div>
 
+          <Button variant="outline" className="w-full mb-4" onClick={handleGoogle} disabled={googleLoading}>
+            {googleLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Continue with Google
+          </Button>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-xs text-muted-foreground">or use phone</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+
           <Tabs defaultValue="passenger" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="passenger">Passenger</TabsTrigger>
               <TabsTrigger value="driver">Driver</TabsTrigger>
             </TabsList>
+
 
             <TabsContent value="passenger" className="space-y-4">
               {!showOtp ? (
