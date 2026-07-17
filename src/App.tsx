@@ -12,6 +12,7 @@ import Auth from "./pages/Auth";
 import Safety from "./pages/Safety";
 import History from "./pages/History";
 import Ride from "./pages/Ride";
+import OAuthConsent from "./pages/OAuthConsent";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
