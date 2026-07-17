@@ -26,12 +26,29 @@ const normalizePhone = (raw: string) => {
 
 const Auth = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const next = sanitizeNext(searchParams.get("next"));
   const [phoneNumber, setPhoneNumber] = useState("");
   const [name, setName] = useState("");
   const [otp, setOtp] = useState("");
   const [showOtp, setShowOtp] = useState(false);
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogle = async () => {
+    setGoogleLoading(true);
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: `${window.location.origin}${next}`,
+    });
+    if (result.error) {
+      setGoogleLoading(false);
+      toast({ title: "Google sign-in failed", description: result.error.message, variant: "destructive" });
+      return;
+    }
+    if (result.redirected) return;
+    navigate(next);
+  };
 
   const handleSendOtp = async () => {
     const phone = normalizePhone(phoneNumber);
