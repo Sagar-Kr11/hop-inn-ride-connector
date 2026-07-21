@@ -24,24 +24,35 @@ const Safety = () => {
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState(false);
 
+  const loadContacts = async (uid: string) => {
+    const { data } = await supabase
+      .from("emergency_contacts")
+      .select("name, phone_number")
+      .eq("user_id", uid)
+      .order("created_at", { ascending: true });
+    const filled = [...emptyContacts];
+    (data || []).slice(0, 3).forEach((c, i) => {
+      filled[i] = { name: c.name, phone_number: c.phone_number };
+    });
+    setContacts(filled);
+  };
+
   useEffect(() => {
-    const load = async () => {
-      const { data: sess } = await supabase.auth.getSession();
-      const uid = sess.session?.user.id ?? null;
+    // Initial session check
+    supabase.auth.getSession().then(({ data }) => {
+      const uid = data.session?.user.id ?? null;
       setUserId(uid);
-      if (!uid) return;
-      const { data } = await supabase
-        .from("emergency_contacts")
-        .select("name, phone_number")
-        .eq("user_id", uid)
-        .order("created_at", { ascending: true });
-      const filled = [...emptyContacts];
-      (data || []).slice(0, 3).forEach((c, i) => {
-        filled[i] = { name: c.name, phone_number: c.phone_number };
-      });
-      setContacts(filled);
+      if (uid) loadContacts(uid);
+    });
+    // Reactive updates — fixes stale-null userId after OAuth redirect / late hydration
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      const uid = session?.user.id ?? null;
+      setUserId(uid);
+      if (uid) loadContacts(uid);
+    });
+    return () => {
+      sub.subscription.unsubscribe();
     };
-    load();
   }, []);
 
   const updateContact = (i: number, field: keyof Contact, val: string) => {
