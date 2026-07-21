@@ -59,15 +59,40 @@ const Safety = () => {
     setContacts((prev) => prev.map((c, idx) => (idx === i ? { ...c, [field]: val } : c)));
   };
 
+  const normalizePhone = (raw: string): string | null => {
+    const cleaned = raw.replace(/[\s\-()]/g, "");
+    if (/^\+[1-9]\d{7,14}$/.test(cleaned)) return cleaned;
+    const digits = cleaned.replace(/\D/g, "");
+    if (digits.length === 12 && digits.startsWith("91")) return `+${digits}`;
+    if (digits.length === 10) return `+91${digits}`;
+    return null;
+  };
+
   const handleSave = async () => {
     if (!userId) {
       navigate("/auth?next=/safety");
       return;
     }
     setSaving(true);
-    const rows = contacts
-      .filter((c) => c.name.trim() && c.phone_number.trim())
-      .map((c) => ({ user_id: userId, name: c.name.trim(), phone_number: c.phone_number.trim() }));
+    const filled = contacts.filter((c) => c.name.trim() && c.phone_number.trim());
+    const invalid: string[] = [];
+    const rows = filled.flatMap((c) => {
+      const normalized = normalizePhone(c.phone_number);
+      if (!normalized) {
+        invalid.push(`${c.name.trim()} (${c.phone_number})`);
+        return [];
+      }
+      return [{ user_id: userId, name: c.name.trim(), phone_number: normalized }];
+    });
+    if (invalid.length > 0) {
+      setSaving(false);
+      toast({
+        title: "Invalid phone number",
+        description: `Use 10-digit Indian numbers or +country format. Fix: ${invalid.join(", ")}`,
+        variant: "destructive",
+      });
+      return;
+    }
     // Replace strategy: delete existing then insert
     await supabase.from("emergency_contacts").delete().eq("user_id", userId);
     if (rows.length > 0) {
@@ -80,6 +105,7 @@ const Safety = () => {
     }
     setSaving(false);
     toast({ title: "Contacts saved", description: `${rows.length} emergency contact${rows.length === 1 ? "" : "s"} on file.` });
+    if (userId) loadContacts(userId);
   };
 
   const handleSOS = async () => {
@@ -221,7 +247,7 @@ const Safety = () => {
                     <Label>Contact {i + 1} Phone</Label>
                     <Input
                       type="tel"
-                      placeholder="+91 XXXXX XXXXX"
+                      placeholder="9876543210 or +919876543210"
                       value={c.phone_number}
                       onChange={(e) => updateContact(i, "phone_number", e.target.value)}
                     />
