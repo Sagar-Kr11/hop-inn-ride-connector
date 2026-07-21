@@ -333,6 +333,47 @@ export type Database = {
           },
         ]
       }
+      sos_events: {
+        Row: {
+          id: string
+          latitude: number | null
+          longitude: number | null
+          ride_id: string | null
+          sms_failed_count: number | null
+          sms_sent_count: number | null
+          triggered_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          ride_id?: string | null
+          sms_failed_count?: number | null
+          sms_sent_count?: number | null
+          triggered_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          ride_id?: string | null
+          sms_failed_count?: number | null
+          sms_sent_count?: number | null
+          triggered_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sos_events_ride_id_fkey"
+            columns: ["ride_id"]
+            isOneToOne: false
+            referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spatial_ref_sys: {
         Row: {
           auth_name: string | null

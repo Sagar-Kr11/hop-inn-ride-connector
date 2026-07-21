@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ const Auth = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const next = sanitizeNext(searchParams.get("next"));
+
   const [phoneNumber, setPhoneNumber] = useState("");
   const [name, setName] = useState("");
   const [otp, setOtp] = useState("");
@@ -36,10 +37,38 @@ const Auth = () => {
   const [verifying, setVerifying] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  const handleGoogle = async () => {
+  // Driver profile
+  const [session, setSession] = useState<any>(null);
+  const [hasDriverRow, setHasDriverRow] = useState<boolean | null>(null);
+  const [vehicleNumber, setVehicleNumber] = useState("");
+  const [permitNumber, setPermitNumber] = useState("");
+  const [registering, setRegistering] = useState(false);
+  const [tab, setTab] = useState("passenger");
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      if (!session?.user?.id) {
+        setHasDriverRow(null);
+        return;
+      }
+      const { data } = await supabase.from("drivers").select("id").eq("user_id", session.user.id).maybeSingle();
+      setHasDriverRow(!!data);
+      // If they arrived here for driver flow and already have a driver row → go straight to /driver
+      if (data && tab === "driver") navigate("/driver");
+    })();
+  }, [session?.user?.id, tab, navigate]);
+
+  const handleGoogle = async (mode: "passenger" | "driver") => {
     setGoogleLoading(true);
+    const nextPath = mode === "driver" ? "/auth?tab=driver" : next;
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: `${window.location.origin}${next}`,
+      redirect_uri: `${window.location.origin}${nextPath}`,
     });
     if (result.error) {
       setGoogleLoading(false);
@@ -47,8 +76,15 @@ const Auth = () => {
       return;
     }
     if (result.redirected) return;
-    navigate(next);
+    setGoogleLoading(false);
+    if (mode === "passenger") navigate(next);
+    // driver mode: stay on this page, effect will route to /driver or show reg form
   };
+
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t === "driver") setTab("driver");
+  }, [searchParams]);
 
   const handleSendOtp = async () => {
     const phone = normalizePhone(phoneNumber);
@@ -81,6 +117,35 @@ const Auth = () => {
     navigate(next);
   };
 
+  const handleDriverRegister = async () => {
+    if (!session?.user?.id) return;
+    if (!vehicleNumber.trim() || !permitNumber.trim()) {
+      toast({ title: "Missing details", description: "Vehicle number and permit number are required.", variant: "destructive" });
+      return;
+    }
+    setRegistering(true);
+    const { error: dErr } = await supabase.from("drivers").insert({
+      user_id: session.user.id,
+      vehicle_number: vehicleNumber.trim(),
+      permit_number: permitNumber.trim(),
+      vehicle_type: "auto",
+      is_online: false,
+      is_verified: false,
+    });
+    if (dErr) {
+      setRegistering(false);
+      toast({ title: "Registration failed", description: dErr.message, variant: "destructive" });
+      return;
+    }
+    // Additive role; unique(user_id, role) means we ignore duplicate errors
+    await supabase.from("user_roles").insert({ user_id: session.user.id, role: "driver" });
+    setRegistering(false);
+    toast({ title: "Welcome, driver!", description: "Your registration is submitted for verification." });
+    navigate("/driver");
+  };
+
+  const needsDriverProfile = tab === "driver" && session?.user && hasDriverRow === false;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -98,24 +163,22 @@ const Auth = () => {
             <p className="text-muted-foreground">Login or create your account</p>
           </div>
 
-          <Button variant="outline" className="w-full mb-4" onClick={handleGoogle} disabled={googleLoading}>
-            {googleLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Continue with Google
-          </Button>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground">or use phone</span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-
-          <Tabs defaultValue="passenger" className="w-full">
+          <Tabs value={tab} onValueChange={setTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="passenger">Passenger</TabsTrigger>
               <TabsTrigger value="driver">Driver</TabsTrigger>
             </TabsList>
 
-
             <TabsContent value="passenger" className="space-y-4">
+              <Button variant="outline" className="w-full" onClick={() => handleGoogle("passenger")} disabled={googleLoading}>
+                {googleLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Continue with Google
+              </Button>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-xs text-muted-foreground">or use phone</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
               {!showOtp ? (
                 <>
                   <div>
@@ -124,64 +187,75 @@ const Auth = () => {
                   </div>
                   <div>
                     <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="+91 XXXXX XXXXX"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="mt-2"
-                    />
+                    <Input id="phone" type="tel" placeholder="+91 XXXXX XXXXX" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} className="mt-2" />
                   </div>
                   <Button className="w-full" size="lg" onClick={handleSendOtp} disabled={sending}>
-                    {sending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Send OTP
+                    {sending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Send OTP
                   </Button>
                 </>
               ) : (
                 <>
                   <div>
                     <Label htmlFor="otp">Enter OTP</Label>
-                    <Input
-                      id="otp"
-                      type="text"
-                      placeholder="6-digit code"
-                      maxLength={6}
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                      className="mt-2 text-center text-2xl tracking-widest"
-                    />
+                    <Input id="otp" type="text" placeholder="6-digit code" maxLength={6}
+                      value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                      className="mt-2 text-center text-2xl tracking-widest" />
                     <p className="text-xs text-muted-foreground mt-2">Sent to {normalizePhone(phoneNumber)}</p>
                   </div>
                   <Button className="w-full" size="lg" onClick={handleVerify} disabled={verifying || otp.length < 6}>
-                    {verifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Verify & Continue
+                    {verifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Verify & Continue
                   </Button>
-                  <Button variant="ghost" className="w-full" onClick={() => { setShowOtp(false); setOtp(""); }}>
-                    Change number / Resend
-                  </Button>
+                  <Button variant="ghost" className="w-full" onClick={() => { setShowOtp(false); setOtp(""); }}>Change number / Resend</Button>
                 </>
               )}
             </TabsContent>
 
             <TabsContent value="driver" className="space-y-4">
-              <div>
-                <Label htmlFor="driver-name">Full Name</Label>
-                <Input id="driver-name" placeholder="Enter your name" className="mt-2" />
-              </div>
-              <div>
-                <Label htmlFor="driver-phone">Phone Number</Label>
-                <Input id="driver-phone" type="tel" placeholder="+91 XXXXX XXXXX" className="mt-2" />
-              </div>
-              <div>
-                <Label htmlFor="vehicle">Vehicle Number</Label>
-                <Input id="vehicle" placeholder="MH XX XX XXXX" className="mt-2" />
-              </div>
-              <div>
-                <Label htmlFor="permit">Auto Permit Number</Label>
-                <Input id="permit" placeholder="Enter permit number" className="mt-2" />
-              </div>
-              <Button className="w-full" size="lg">Register as Driver</Button>
+              {!session ? (
+                <>
+                  <Button variant="outline" className="w-full" onClick={() => handleGoogle("driver")} disabled={googleLoading}>
+                    {googleLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Continue with Google
+                  </Button>
+                  <p className="text-xs text-muted-foreground text-center">
+                    We use Google to verify driver identity. Vehicle & permit come next.
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-xs text-muted-foreground">phone OTP (coming soon)</span>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+                  <div>
+                    <Label>Phone Number</Label>
+                    <Input type="tel" placeholder="+91 XXXXX XXXXX" className="mt-2" disabled />
+                  </div>
+                </>
+              ) : needsDriverProfile ? (
+                <>
+                  <div className="rounded-lg bg-primary/10 p-3 text-sm">
+                    Signed in as <strong>{session.user.email}</strong>. Complete your driver profile below.
+                  </div>
+                  <div>
+                    <Label htmlFor="vehicle">Vehicle Number</Label>
+                    <Input id="vehicle" placeholder="MH XX XX XXXX" value={vehicleNumber} onChange={(e) => setVehicleNumber(e.target.value)} className="mt-2" />
+                  </div>
+                  <div>
+                    <Label htmlFor="permit">Auto Permit Number</Label>
+                    <Input id="permit" placeholder="Enter permit number" value={permitNumber} onChange={(e) => setPermitNumber(e.target.value)} className="mt-2" />
+                  </div>
+                  <Button className="w-full" size="lg" onClick={handleDriverRegister} disabled={registering}>
+                    {registering && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Register as Driver
+                  </Button>
+                </>
+              ) : hasDriverRow ? (
+                <div className="text-center space-y-4">
+                  <p className="text-sm">You're already registered as a driver.</p>
+                  <Link to="/driver"><Button className="w-full" size="lg">Go to Driver Dashboard</Button></Link>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center">Loading…</p>
+              )}
             </TabsContent>
           </Tabs>
 

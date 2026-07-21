@@ -1,50 +1,157 @@
-import { Power, Route, IndianRupee, Users, TrendingUp, MapPin, Calendar, ArrowRight, AlertTriangle, Phone, Shield } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Power, Route, IndianRupee, Users, TrendingUp, MapPin, Calendar, ArrowRight, AlertTriangle, Phone, Shield, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import GoogleMap from "@/components/GoogleMap";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-const nearbyRequests = [{
-  id: 1,
-  passenger: "Priya S.",
-  pickup: "FC Road",
-  destination: "Hinjewadi",
-  distance: "0.5 km away",
-  fare: 45
-}, {
-  id: 2,
-  passenger: "Rahul M.",
-  pickup: "Shivaji Nagar",
-  destination: "Kothrud",
-  distance: "0.8 km away",
-  fare: 38
-}, {
-  id: 3,
-  passenger: "Sneha K.",
-  pickup: "Camp Area",
-  destination: "Viman Nagar",
-  distance: "1.2 km away",
-  fare: 52
-}];
+import { haversineKm } from "@/lib/utils";
+
 const Driver = () => {
-  const [isOnline, setIsOnline] = useState(true);
+  const navigate = useNavigate();
+  const [userId, setUserId] = useState<string | null>(null);
+  const [driverRow, setDriverRow] = useState<any>(null);
+  const [isOnline, setIsOnline] = useState(false);
+  const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [requests, setRequests] = useState<any[]>([]);
+  const watchIdRef = useRef<number | null>(null);
+  const lastPushRef = useRef<number>(0);
+
+  useEffect(() => {
+    (async () => {
+      const { data: sess } = await supabase.auth.getSession();
+      const uid = sess.session?.user.id;
+      if (!uid) {
+        navigate("/auth?next=/driver");
+        return;
+      }
+      setUserId(uid);
+      const { data } = await supabase.from("drivers").select("*").eq("user_id", uid).maybeSingle();
+      if (!data) {
+        navigate("/auth?next=/driver");
+        return;
+      }
+      setDriverRow(data);
+      setIsOnline(!!data.is_online);
+      if (data.current_latitude && data.current_longitude) {
+        setLoc({ lat: Number(data.current_latitude), lng: Number(data.current_longitude) });
+      }
+    })();
+  }, [navigate]);
+
+  // Toggle online / geolocation watch
+  const toggleOnline = async (next: boolean) => {
+    if (!driverRow) return;
+    setIsOnline(next);
+    await supabase.from("drivers").update({ is_online: next }).eq("id", driverRow.id);
+    if (next) {
+      if (!navigator.geolocation) {
+        toast({ title: "Geolocation unsupported", variant: "destructive" });
+        return;
+      }
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        async (pos) => {
+          const now = Date.now();
+          if (now - lastPushRef.current < 10000) return;
+          lastPushRef.current = now;
+          const nl = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setLoc(nl);
+          await supabase
+            .from("drivers")
+            .update({ current_latitude: nl.lat, current_longitude: nl.lng })
+            .eq("id", driverRow.id);
+        },
+        (err) => console.warn("geo err", err),
+        { enableHighAccuracy: true, maximumAge: 5000 },
+      );
+    } else {
+      if (watchIdRef.current != null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current != null) navigator.geolocation.clearWatch(watchIdRef.current);
+    };
+  }, []);
+
+  // Load nearby search-status rides
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase
+        .from("rides")
+        .select("id, pickup_location, dropoff_location, pickup_latitude, pickup_longitude, fare, ride_type, created_at, passenger_id")
+        .eq("status", "searching")
+        .is("driver_id", null)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      const rows = (data || []).map((r) => ({
+        ...r,
+        distanceKm: loc
+          ? haversineKm(loc, { lat: Number(r.pickup_latitude), lng: Number(r.pickup_longitude) })
+          : null,
+      }));
+      rows.sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
+      setRequests(rows);
+    };
+    load();
+    const chan = supabase
+      .channel("driver-requests")
+      .on("postgres_changes", { event: "*", schema: "public", table: "rides" }, () => load())
+      .subscribe();
+    return () => {
+      supabase.removeChannel(chan);
+    };
+  }, [loc?.lat, loc?.lng]);
+
+  const acceptRide = async (rideId: string) => {
+    if (!driverRow) return;
+    const { error } = await supabase
+      .from("rides")
+      .update({ driver_id: driverRow.id, status: "matched" })
+      .eq("id", rideId)
+      .eq("status", "searching")
+      .is("driver_id", null);
+    if (error) {
+      toast({ title: "Could not accept", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Ride accepted", description: "Head to the pickup location." });
+    navigate(`/ride?id=${rideId}`);
+  };
+
+  // Earnings aggregates
+  const { data: stats } = useQuery({
+    queryKey: ["driver-stats", driverRow?.id],
+    enabled: !!driverRow?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("rides")
+        .select("fare, driver_rating, status")
+        .eq("driver_id", driverRow.id)
+        .eq("status", "completed");
+      const trips = data?.length ?? 0;
+      const earnings = (data || []).reduce((s, r) => s + (Number(r.fare) || 0), 0);
+      const rated = (data || []).filter((r) => r.driver_rating != null);
+      const rating = rated.length
+        ? rated.reduce((s, r) => s + Number(r.driver_rating), 0) / rated.length
+        : null;
+      return { trips, earnings, rating };
+    },
+  });
 
   const { data: upcomingEvents } = useQuery({
     queryKey: ["dashboard-events"],
@@ -60,25 +167,49 @@ const Driver = () => {
     },
   });
 
-  return <div className="min-h-screen bg-background">
-      <Header />
+  const handleSOS = async () => {
+    let pos: GeolocationPosition | null = null;
+    try {
+      pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000 }));
+    } catch { /* still fire */ }
+    const { data, error } = await supabase.functions.invoke("trigger-sos", {
+      body: { latitude: pos?.coords.latitude ?? loc?.lat, longitude: pos?.coords.longitude ?? loc?.lng },
+    });
+    if (error || (data as any)?.error) {
+      toast({ title: "SOS failed", description: (data as any)?.error || error?.message, variant: "destructive" });
+      return;
+    }
+    const d = data as any;
+    toast({ title: "🚨 SOS sent", description: `Notified ${d.sms_sent}/${d.contacts_total} contacts.` });
+  };
 
+  const mapCenter = loc || { lat: 18.5204, lng: 73.8567 };
+  const mapMarkers = [
+    ...(loc ? [{ ...loc, label: "🛺", title: "You" }] : []),
+    ...requests.slice(0, 8).map((r) => ({
+      lat: Number(r.pickup_latitude),
+      lng: Number(r.pickup_longitude),
+      label: "P",
+      title: r.pickup_location,
+    })),
+  ];
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
       <main className="container px-4 py-6">
-        {/* Status Header */}
         <Card className="p-6 mb-6 shadow-lg bg-[#face4a]">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold mb-2">Driver Dashboard</h1>
-              <p className="text-muted-foreground">Welcome back, Rajesh!</p>
+              <p className="text-muted-foreground">
+                {driverRow ? `Vehicle ${driverRow.vehicle_number}` : "Loading…"}
+              </p>
             </div>
             <div className="flex items-center gap-4">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button
-                    variant="destructive"
-                    size="lg"
-                    className="font-bold shadow-lg animate-pulse"
-                  >
+                  <Button variant="destructive" size="lg" className="font-bold shadow-lg animate-pulse">
                     <AlertTriangle className="h-5 w-5" />
                     SOS Alert
                   </Button>
@@ -90,22 +221,12 @@ const Driver = () => {
                       Send Emergency Alert?
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will immediately notify Hop-Inn safety team, share your live location,
-                      and alert local emergency contacts. Use only in case of a real emergency.
+                      This will alert your emergency contacts via SMS with your live location. Use only in a real emergency.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() =>
-                        toast({
-                          title: "🚨 Emergency Alert Sent",
-                          description:
-                            "Safety team notified. Help is on the way. Stay calm.",
-                        })
-                      }
-                      className="bg-destructive hover:bg-destructive/90"
-                    >
+                    <AlertDialogAction onClick={handleSOS} className="bg-destructive hover:bg-destructive/90">
                       <Phone className="h-4 w-4" />
                       Send Alert
                     </AlertDialogAction>
@@ -113,168 +234,104 @@ const Driver = () => {
                 </AlertDialogContent>
               </AlertDialog>
 
-              <Label htmlFor="online-toggle" className="font-semibold">
-                {isOnline ? "Online" : "Offline"}
-              </Label>
-              <Switch id="online-toggle" checked={isOnline} onCheckedChange={setIsOnline} className="data-[state=checked]:bg-secondary" />
+              <Label htmlFor="online-toggle" className="font-semibold">{isOnline ? "Online" : "Offline"}</Label>
+              <Switch
+                id="online-toggle"
+                checked={isOnline}
+                onCheckedChange={toggleOnline}
+                className="data-[state=checked]:bg-secondary"
+              />
             </div>
           </div>
         </Card>
 
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Earnings Stats */}
             <div className="grid md:grid-cols-3 gap-4">
               <Card className="p-6 bg-gradient-to-br from-primary/10 to-accent/10">
                 <div className="flex items-center gap-3 mb-2">
                   <IndianRupee className="h-8 w-8 text-primary" />
-                  <span className="text-sm text-muted-foreground">Today's Earnings</span>
+                  <span className="text-sm text-muted-foreground">Total Earnings</span>
                 </div>
-                <div className="text-3xl font-bold text-primary">₹420</div>
+                <div className="text-3xl font-bold text-primary">
+                  {stats ? `₹${stats.earnings}` : "—"}
+                </div>
               </Card>
-              
               <Card className="p-6 bg-gradient-to-br from-secondary/10 to-secondary/5">
                 <div className="flex items-center gap-3 mb-2">
                   <Route className="h-8 w-8 text-secondary" />
-                  <span className="text-sm text-muted-foreground">Trips Today</span>
+                  <span className="text-sm text-muted-foreground">Completed Trips</span>
                 </div>
-                <div className="text-3xl font-bold text-secondary">12</div>
+                <div className="text-3xl font-bold text-secondary">{stats?.trips ?? 0}</div>
               </Card>
-              
               <Card className="p-6 bg-gradient-to-br from-accent/10 to-primary/5">
                 <div className="flex items-center gap-3 mb-2">
                   <TrendingUp className="h-8 w-8 text-accent" />
                   <span className="text-sm text-muted-foreground">Rating</span>
                 </div>
-                <div className="text-3xl font-bold text-accent">4.8 ⭐</div>
+                <div className="text-3xl font-bold text-accent">
+                  {stats?.rating != null ? `${stats.rating.toFixed(1)} ⭐` : "No rides yet"}
+                </div>
               </Card>
             </div>
 
-            {/* Current Route */}
             <Card className="p-6 shadow-lg">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold">Current Route</h3>
-                <Button variant="secondary">Set New Route</Button>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex items-start gap-4 p-4 bg-muted/30 rounded-xl">
-                  <MapPin className="h-6 w-6 text-primary mt-1" />
-                  <div className="flex-1">
-                    <p className="font-semibold text-lg mb-1">Shivaji Nagar → Hinjewadi</p>
-                    <p className="text-sm text-muted-foreground">Via FC Road, Paud Road</p>
-                    <div className="flex gap-4 mt-3 text-sm">
-                      <span className="flex items-center gap-1">
-                        <Users className="h-4 w-4" />
-                        2/3 seats filled
-                      </span>
-                      <span className="text-muted-foreground">~45 min</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <h3 className="text-xl font-bold mb-4">Your Location & Requests</h3>
+              <GoogleMap className="h-[300px] mb-4" center={mapCenter} zoom={13} markers={mapMarkers} />
+              {!isOnline && (
+                <p className="text-sm text-muted-foreground">Go online to start receiving ride requests near your location.</p>
+              )}
             </Card>
 
-            {/* Nearby Requests */}
             <Card className="p-6 shadow-lg">
               <h3 className="text-xl font-bold mb-4">Nearby Passenger Requests</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Passengers along your route looking for rides
-              </p>
-              
+              <p className="text-sm text-muted-foreground mb-4">Live requests where no driver is assigned yet.</p>
               <div className="space-y-3">
-                {nearbyRequests.map(request => <Card key={request.id} className="p-4 hover:shadow-md transition-shadow bg-destructive-foreground">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            👤
-                          </div>
-                          <div>
-                            <h4 className="font-semibold">{request.passenger}</h4>
-                            <p className="text-xs text-muted-foreground">{request.distance}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="text-sm space-y-1 ml-13">
-                          <p className="flex items-center gap-2">
-                            <span className="text-primary">●</span> {request.pickup}
-                          </p>
-                          <p className="flex items-center gap-2">
-                            <span className="text-secondary">●</span> {request.destination}
+                {requests.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">No open requests right now.</p>
+                ) : (
+                  requests.map((r) => (
+                    <Card key={r.id} className="p-4 hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm mb-1"><span className="text-primary">●</span> {r.pickup_location}</p>
+                          <p className="text-sm mb-2"><span className="text-secondary">●</span> {r.dropoff_location}</p>
+                          <p className="text-xs text-muted-foreground capitalize">
+                            {r.ride_type.replace("_", " ")}
+                            {r.distanceKm != null ? ` • ${r.distanceKm.toFixed(1)} km from you` : ""}
                           </p>
                         </div>
-                      </div>
-
-                      <div className="text-right space-y-2">
-                        <div className="flex items-center gap-1 font-bold text-xl text-primary">
-                          <IndianRupee className="h-5 w-5" />
-                          <span>{request.fare}</span>
+                        <div className="text-right space-y-2">
+                          <div className="flex items-center gap-1 font-bold text-xl text-primary">
+                            <IndianRupee className="h-5 w-5" />
+                            <span>{r.fare ?? "—"}</span>
+                          </div>
+                          <Button size="sm" variant="secondary" onClick={() => acceptRide(r.id)}>Accept</Button>
                         </div>
-                        <Button size="sm" variant="secondary">Accept</Button>
                       </div>
-                    </div>
-                  </Card>)}
+                    </Card>
+                  ))
+                )}
               </div>
             </Card>
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-6">
-            {/* Quick Actions */}
             <Card className="p-6 shadow-lg">
               <h3 className="font-semibold text-lg mb-4">Quick Actions</h3>
               <div className="space-y-3">
-                <Link to="/booking">
-                  <Button variant="outline" className="w-full justify-start" size="lg">
-                    <Route className="mr-3 h-5 w-5" />
-                    Set Route
-                  </Button>
-                </Link>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  size="lg"
-                  onClick={() =>
-                    toast({
-                      title: "Passengers",
-                      description: "No active passengers right now. New requests appear on the right.",
-                    })
-                  }
-                >
-                  <Users className="mr-3 h-5 w-5" />
-                  View Passengers
-                </Button>
-                <Link to="/history">
-                  <Button variant="outline" className="w-full justify-start" size="lg">
-                    <IndianRupee className="mr-3 h-5 w-5" />
-                    Earnings Report
-                  </Button>
-                </Link>
+                <Link to="/booking"><Button variant="outline" className="w-full justify-start" size="lg">
+                  <Route className="mr-3 h-5 w-5" />Set Route
+                </Button></Link>
+                <Link to="/history"><Button variant="outline" className="w-full justify-start" size="lg">
+                  <IndianRupee className="mr-3 h-5 w-5" />Earnings Report
+                </Button></Link>
+                <Link to="/safety"><Button variant="outline" className="w-full justify-start" size="lg">
+                  <Shield className="mr-3 h-5 w-5" />Safety Contacts
+                </Button></Link>
               </div>
             </Card>
 
-            {/* Tips */}
-            <Card className="p-6 bg-gradient-to-br from-secondary/10 to-primary/5">
-              <h3 className="font-semibold text-lg mb-3">💡 Driver Tips</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-start gap-2">
-                  <span className="text-secondary">✓</span>
-                  <span>Accept requests early for better earnings</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-secondary">✓</span>
-                  <span>Event routes have higher demand</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-secondary">✓</span>
-                  <span>​Have a friendly nature with passengers         </span>
-                </li>
-              </ul>
-            </Card>
-
-            {/* Hyperlocal Events Preview */}
             <Card className="p-6 shadow-lg border-2 border-primary/20">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -291,19 +348,10 @@ const Driver = () => {
                 <div className="space-y-3">
                   {upcomingEvents.map((event) => (
                     <div key={event.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
-                      {event.image_url && (
-                        <img
-                          src={event.image_url}
-                          alt={event.name}
-                          className="h-12 w-12 rounded-lg object-cover"
-                          loading="lazy"
-                        />
-                      )}
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm truncate">{event.name}</p>
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {event.location_name}
+                          <MapPin className="h-3 w-3" />{event.location_name}
                         </p>
                       </div>
                       <div className="text-right shrink-0">
@@ -318,15 +366,12 @@ const Driver = () => {
               ) : (
                 <p className="text-sm text-muted-foreground">No upcoming events nearby</p>
               )}
-              <Link to="/events" className="block mt-4">
-                <Button variant="secondary" size="sm" className="w-full">
-                  Set Event Route
-                </Button>
-              </Link>
             </Card>
           </div>
         </div>
       </main>
-    </div>;
+    </div>
+  );
 };
+
 export default Driver;
