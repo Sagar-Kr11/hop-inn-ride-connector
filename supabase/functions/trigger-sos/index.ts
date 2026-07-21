@@ -77,15 +77,31 @@ Deno.serve(async (req) => {
     const message =
       `🚨 Hop-Inn SOS: ${name} needs help.\n${locLine}\n${rideLine}`.trim();
 
+    // Normalize Indian phone numbers to E.164 (Twilio requires it).
+    const toE164 = (raw: string): string | null => {
+      const cleaned = raw.replace(/[\s\-()]/g, '');
+      if (/^\+[1-9]\d{7,14}$/.test(cleaned)) return cleaned;
+      const digits = cleaned.replace(/\D/g, '');
+      if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`;
+      if (digits.length === 10) return `+91${digits}`;
+      return null;
+    };
+
     let sent = 0;
     let failed = 0;
     const results: Array<{ to: string; ok: boolean; error?: string }> = [];
 
     if (sid && twToken && from && contacts && contacts.length > 0) {
       for (const c of contacts) {
+        const normalized = toE164(c.phone_number);
+        if (!normalized) {
+          failed += 1;
+          results.push({ to: c.phone_number, ok: false, error: 'invalid_phone_format' });
+          continue;
+        }
         try {
           const params = new URLSearchParams({
-            To: c.phone_number,
+            To: normalized,
             From: from,
             Body: message,
           });
@@ -102,16 +118,16 @@ Deno.serve(async (req) => {
           );
           if (res.ok) {
             sent += 1;
-            results.push({ to: c.phone_number, ok: true });
+            results.push({ to: normalized, ok: true });
           } else {
             failed += 1;
             const errBody = await res.text();
-            console.error('twilio fail', c.phone_number, errBody);
-            results.push({ to: c.phone_number, ok: false, error: `HTTP ${res.status}` });
+            console.error('twilio fail', normalized, errBody);
+            results.push({ to: normalized, ok: false, error: `HTTP ${res.status}` });
           }
         } catch (e) {
           failed += 1;
-          results.push({ to: c.phone_number, ok: false, error: (e as Error).message });
+          results.push({ to: normalized, ok: false, error: (e as Error).message });
         }
       }
       await admin
