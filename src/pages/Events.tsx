@@ -1,6 +1,7 @@
 import { Calendar, MapPin, Clock, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import eventIllustration from "@/assets/event-festival.jpg";
 import { Link } from "react-router-dom";
