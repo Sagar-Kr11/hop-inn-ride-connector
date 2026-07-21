@@ -247,7 +247,7 @@ const Safety = () => {
                     <Label>Contact {i + 1} Phone</Label>
                     <Input
                       type="tel"
-                      placeholder="+91 XXXXX XXXXX"
+                      placeholder="9876543210 or +919876543210"
                       value={c.phone_number}
                       onChange={(e) => updateContact(i, "phone_number", e.target.value)}
                     />
