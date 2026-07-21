@@ -1,6 +1,7 @@
 import { Calendar, MapPin, Clock, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import eventIllustration from "@/assets/event-festival.jpg";
 import { Link } from "react-router-dom";
@@ -89,6 +90,11 @@ const Events = () => {
                   <div className="p-6 space-y-4">
                     <div>
                       <h3 className="text-xl font-bold mb-2">{event.name}</h3>
+                      {event.category === "movie" && (
+                        <Badge variant="secondary" className="mb-2">
+                          Curated demo showtime — check local listings
+                        </Badge>
+                      )}
                       {event.description && (
                         <p className="text-sm text-muted-foreground mb-3 line-clamp-3">{event.description}</p>
                       )}

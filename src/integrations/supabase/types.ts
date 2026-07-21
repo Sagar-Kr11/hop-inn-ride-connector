@@ -124,6 +124,7 @@ export type Database = {
       }
       events: {
         Row: {
+          category: string | null
           created_at: string
           description: string | null
           event_date: string
@@ -135,6 +136,7 @@ export type Database = {
           name: string
         }
         Insert: {
+          category?: string | null
           created_at?: string
           description?: string | null
           event_date: string
@@ -146,6 +148,7 @@ export type Database = {
           name: string
         }
         Update: {
+          category?: string | null
           created_at?: string
           description?: string | null
           event_date?: string

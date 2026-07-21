@@ -1,35 +1,23 @@
-## Root cause
+Plan: Keep movie event demo timings and add a "Curated for demo" label
 
-The SOS was delivered to the edge function and Twilio was called — but Twilio rejected the request with:
+User decision: keep the filled demo movie showtimes, but clearly label them as curated demo data so users are not misled into thinking they are live listings.
 
-```
-21211 Invalid 'To' Phone Number: 926231XXXX
-```
+Changes:
 
-Your saved contact number is `9262310045` (10 digits, no country code). Twilio requires E.164 format like `+919262310045`. Because Twilio returned HTTP 400, the function counted it as `sms_failed: 1`, so the toast correctly showed "Notified 0/1 contact."
+1. Database migration
+   - Add a `category` text column to the `public.events` table (nullable, default null).
+   - Backfill the 3 seeded movie events to `category = 'movie'`.
+   - Leave existing festival/concert events with `category = null` (or set to 'festival' for consistency).
+   - Update the existing movie-seed migration comment to note the demo-showtime policy.
 
-The placeholder in the Safety form (`+91 XXXXX XXXXX`) hints at this, but nothing enforces or normalizes it, so a bare 10-digit number gets saved as-is and Twilio rejects it.
+2. Frontend update in `src/pages/Events.tsx`
+   - Render a small badge/label on event cards where `category === 'movie'` (or similar marker) that says "Curated demo showtime — check local listings".
+   - Keep the existing date/time display intact.
+   - Ensure the label uses the project's semantic color tokens (e.g., `bg-secondary/10 text-secondary`) and does not break the card layout on mobile.
 
-## Fix
+3. Optional: update event seed migration comment
+   - Make the comment explicitly state that showtimes are manually chosen demo values, not live listings.
 
-Normalize Indian phone numbers to E.164 before sending to Twilio, and also validate/normalize on save so bad numbers can't be stored.
+No changes to the booking flow, map, or SOS features.
 
-### 1. `supabase/functions/trigger-sos/index.ts`
-Add a small `toE164` helper applied to `c.phone_number` right before building the Twilio `To` param:
-- Strip spaces, dashes, parentheses.
-- If it already starts with `+`, keep as-is.
-- If it starts with `91` and is 12 digits, prefix `+`.
-- If it's 10 digits, prefix `+91` (default country = India for this app).
-- Otherwise, skip that contact and record a clear error (`invalid_phone_format`) in `results` instead of calling Twilio.
-
-### 2. `src/pages/Safety.tsx`
-On save, run the same normalization on each `phone_number` before insert so stored values are already E.164. Show a destructive toast listing any contacts that couldn't be normalized (e.g. too few digits) instead of silently saving them.
-
-Also tighten the input UX slightly: update the placeholder to `9876543210 or +919876543210` so users know both are accepted.
-
-### 3. Backfill note
-No migration needed — the existing bad row will be overwritten the next time the user saves (Safety.tsx already does delete-then-insert). After they re-save, the SOS will send successfully.
-
-## Out of scope
-- No schema change, no new dependency.
-- Not touching the Driver/Ride SOS wiring — same edge function serves them, so the fix propagates automatically.
+Verification: after build, the `/events` page should show the movie event cards with the demo label, while festival/concert cards remain unchanged.
