@@ -73,6 +73,7 @@ const Safety = () => {
 
   const handleSOS = async () => {
     if (!userId) {
+      toast({ title: "Sign in required", description: "Please sign in so we know who to alert and can reach your emergency contacts.", variant: "destructive" });
       navigate("/auth?next=/safety");
       return;
     }
