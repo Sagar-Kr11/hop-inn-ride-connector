@@ -1,28 +1,119 @@
-import { Shield, Phone, AlertCircle, Users, MapPin, Bell } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Shield, Phone, AlertCircle, Users, MapPin, Bell, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Header from "@/components/Header";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
+
+type Contact = { name: string; phone_number: string };
+
+const emptyContacts: Contact[] = [
+  { name: "", phone_number: "" },
+  { name: "", phone_number: "" },
+  { name: "", phone_number: "" },
+];
 
 const Safety = () => {
+  const navigate = useNavigate();
+  const [userId, setUserId] = useState<string | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>(emptyContacts);
+  const [saving, setSaving] = useState(false);
+  const [triggering, setTriggering] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data: sess } = await supabase.auth.getSession();
+      const uid = sess.session?.user.id ?? null;
+      setUserId(uid);
+      if (!uid) return;
+      const { data } = await supabase
+        .from("emergency_contacts")
+        .select("name, phone_number")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: true });
+      const filled = [...emptyContacts];
+      (data || []).slice(0, 3).forEach((c, i) => {
+        filled[i] = { name: c.name, phone_number: c.phone_number };
+      });
+      setContacts(filled);
+    };
+    load();
+  }, []);
+
+  const updateContact = (i: number, field: keyof Contact, val: string) => {
+    setContacts((prev) => prev.map((c, idx) => (idx === i ? { ...c, [field]: val } : c)));
+  };
+
+  const handleSave = async () => {
+    if (!userId) {
+      navigate("/auth?next=/safety");
+      return;
+    }
+    setSaving(true);
+    const rows = contacts
+      .filter((c) => c.name.trim() && c.phone_number.trim())
+      .map((c) => ({ user_id: userId, name: c.name.trim(), phone_number: c.phone_number.trim() }));
+    // Replace strategy: delete existing then insert
+    await supabase.from("emergency_contacts").delete().eq("user_id", userId);
+    if (rows.length > 0) {
+      const { error } = await supabase.from("emergency_contacts").insert(rows);
+      if (error) {
+        setSaving(false);
+        toast({ title: "Save failed", description: error.message, variant: "destructive" });
+        return;
+      }
+    }
+    setSaving(false);
+    toast({ title: "Contacts saved", description: `${rows.length} emergency contact${rows.length === 1 ? "" : "s"} on file.` });
+  };
+
+  const handleSOS = async () => {
+    if (!userId) {
+      navigate("/auth?next=/safety");
+      return;
+    }
+    setTriggering(true);
+    let pos: GeolocationPosition | null = null;
+    try {
+      pos = await new Promise((res, rej) =>
+        navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000 }),
+      );
+    } catch {
+      /* keep going even without location */
+    }
+    const { data, error } = await supabase.functions.invoke("trigger-sos", {
+      body: { latitude: pos?.coords.latitude, longitude: pos?.coords.longitude },
+    });
+    setTriggering(false);
+    if (error || (data as any)?.error) {
+      toast({ title: "SOS failed", description: (data as any)?.error || error?.message, variant: "destructive" });
+      return;
+    }
+    const d = data as any;
+    toast({
+      title: "🚨 SOS sent",
+      description: `Logged. Notified ${d.sms_sent}/${d.contacts_total} contact${d.contacts_total === 1 ? "" : "s"}.`,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
-
       <main className="container px-4 py-8">
-        {/* Hero Section */}
         <div className="text-center mb-12">
           <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-destructive/10 mb-4">
             <Shield className="h-10 w-10 text-destructive" />
           </div>
           <h1 className="text-4xl font-bold mb-4">Your Safety Matters</h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Hop-Inn is committed to ensuring safe rides for all passengers and drivers. Access emergency features and safety resources here.
+            Hop-Inn keeps riders and drivers safe with instant SOS, verified drivers, and live trip sharing.
           </p>
         </div>
 
-        {/* Emergency SOS */}
         <Card className="p-8 mb-8 border-2 border-destructive/50 shadow-lg">
           <div className="text-center space-y-4">
             <h2 className="text-2xl font-bold text-destructive flex items-center justify-center gap-2">
@@ -30,25 +121,22 @@ const Safety = () => {
               Emergency SOS
             </h2>
             <p className="text-muted-foreground max-w-md mx-auto">
-              In case of emergency, press the button below to alert authorities and your emergency contacts
+              Press to alert your emergency contacts with your live location.
             </p>
-            <Button 
-              size="lg" 
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground h-20 w-20 rounded-full text-2xl font-bold shadow-lg hover:shadow-xl"
+            <Button
+              onClick={handleSOS}
+              disabled={triggering}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground h-20 w-20 rounded-full text-xl font-bold shadow-lg"
             >
-              SOS
+              {triggering ? <Loader2 className="h-6 w-6 animate-spin" /> : "SOS"}
             </Button>
-            <p className="text-sm text-muted-foreground">
-              Tap once to trigger alert • Authorities will be notified immediately
-            </p>
+            <p className="text-sm text-muted-foreground">Tap once • Contacts notified via SMS</p>
           </div>
         </Card>
 
         <div className="grid lg:grid-cols-2 gap-8">
-          {/* Safety Features */}
           <div className="space-y-6">
             <h2 className="text-2xl font-bold mb-4">Safety Features</h2>
-            
             <Card className="p-6">
               <div className="flex gap-4">
                 <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -56,13 +144,10 @@ const Safety = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg mb-2">Live Trip Tracking</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Share your live location with trusted contacts. They can track your ride in real-time from pickup to drop-off.
-                  </p>
+                  <p className="text-sm text-muted-foreground">Real-time driver location on your ride map, updated live.</p>
                 </div>
               </div>
             </Card>
-
             <Card className="p-6">
               <div className="flex gap-4">
                 <div className="h-12 w-12 rounded-full bg-secondary/10 flex items-center justify-center flex-shrink-0">
@@ -70,134 +155,84 @@ const Safety = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg mb-2">Verified Drivers</h3>
-                  <p className="text-sm text-muted-foreground">
-                    All drivers undergo background verification. View driver details, ratings, and vehicle information before your ride.
-                  </p>
+                  <p className="text-sm text-muted-foreground">Vehicle & permit numbers verified. Ratings from real rides.</p>
                 </div>
               </div>
             </Card>
-
             <Card className="p-6">
               <div className="flex gap-4">
                 <div className="h-12 w-12 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
                   <Phone className="h-6 w-6 text-accent" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg mb-2">24/7 Support</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Our support team is available round the clock. Call, chat, or trigger an emergency alert anytime.
-                  </p>
+                  <h3 className="font-semibold text-lg mb-2">One-tap SMS Alerts</h3>
+                  <p className="text-sm text-muted-foreground">SOS pings every contact via Twilio SMS with your live coordinates.</p>
                 </div>
               </div>
             </Card>
-
             <Card className="p-6">
               <div className="flex gap-4">
                 <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0">
                   <Bell className="h-6 w-6 text-destructive" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg mb-2">Smart Alerts</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Get notified if your ride deviates from route or if there's an extended stop. Automatic alerts to emergency contacts.
-                  </p>
+                  <h3 className="font-semibold text-lg mb-2">SOS Log</h3>
+                  <p className="text-sm text-muted-foreground">Every SOS is logged server-side, even if SMS delivery fails.</p>
                 </div>
               </div>
             </Card>
           </div>
 
-          {/* Emergency Contacts */}
           <div className="space-y-6">
             <h2 className="text-2xl font-bold mb-4">Emergency Contacts</h2>
-            
             <Card className="p-6">
               <h3 className="font-semibold text-lg mb-4">Your Trusted Contacts</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Add up to 3 emergency contacts who will be notified in case of an alert
+                Add up to 3 emergency contacts who will receive an SMS when you press SOS.
               </p>
-              
               <div className="space-y-4">
-                <div>
-                  <Label htmlFor="contact1-name">Contact 1 Name</Label>
-                  <Input id="contact1-name" placeholder="Name" className="mt-2" />
-                </div>
-                <div>
-                  <Label htmlFor="contact1-phone">Contact 1 Phone</Label>
-                  <Input id="contact1-phone" type="tel" placeholder="+91 XXXXX XXXXX" className="mt-2" />
-                </div>
-                
-                <div className="pt-2">
-                  <Label htmlFor="contact2-name">Contact 2 Name</Label>
-                  <Input id="contact2-name" placeholder="Name" className="mt-2" />
-                </div>
-                <div>
-                  <Label htmlFor="contact2-phone">Contact 2 Phone</Label>
-                  <Input id="contact2-phone" type="tel" placeholder="+91 XXXXX XXXXX" className="mt-2" />
-                </div>
-
-                <Button className="w-full mt-4">Save Emergency Contacts</Button>
+                {contacts.map((c, i) => (
+                  <div key={i} className="space-y-2 pt-2 border-t border-border first:border-0 first:pt-0">
+                    <Label>Contact {i + 1} Name</Label>
+                    <Input
+                      placeholder="Name"
+                      value={c.name}
+                      onChange={(e) => updateContact(i, "name", e.target.value)}
+                    />
+                    <Label>Contact {i + 1} Phone</Label>
+                    <Input
+                      type="tel"
+                      placeholder="+91 XXXXX XXXXX"
+                      value={c.phone_number}
+                      onChange={(e) => updateContact(i, "phone_number", e.target.value)}
+                    />
+                  </div>
+                ))}
+                <Button className="w-full mt-4" onClick={handleSave} disabled={saving}>
+                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Emergency Contacts
+                </Button>
+                {!userId && (
+                  <p className="text-xs text-muted-foreground text-center">Sign in to save contacts.</p>
+                )}
               </div>
             </Card>
 
-            {/* Quick Dial */}
             <Card className="p-6 bg-gradient-to-br from-destructive/5 to-destructive/10">
               <h3 className="font-semibold text-lg mb-4">Emergency Helplines</h3>
               <div className="space-y-3">
-                <Button variant="outline" className="w-full justify-between h-auto py-4">
-                  <div className="text-left">
-                    <div className="font-semibold">Police</div>
-                    <div className="text-xs text-muted-foreground">National Emergency</div>
-                  </div>
+                <a href="tel:100"><Button variant="outline" className="w-full justify-between h-auto py-4">
+                  <div className="text-left"><div className="font-semibold">Police</div><div className="text-xs text-muted-foreground">National Emergency</div></div>
                   <div className="text-xl font-bold">100</div>
-                </Button>
-                
-                <Button variant="outline" className="w-full justify-between h-auto py-4">
-                  <div className="text-left">
-                    <div className="font-semibold">Women Helpline</div>
-                    <div className="text-xs text-muted-foreground">24x7 Support</div>
-                  </div>
+                </Button></a>
+                <a href="tel:1091"><Button variant="outline" className="w-full justify-between h-auto py-4">
+                  <div className="text-left"><div className="font-semibold">Women Helpline</div><div className="text-xs text-muted-foreground">24x7 Support</div></div>
                   <div className="text-xl font-bold">1091</div>
-                </Button>
-                
-                <Button variant="outline" className="w-full justify-between h-auto py-4">
-                  <div className="text-left">
-                    <div className="font-semibold">Hop-Inn Support</div>
-                    <div className="text-xs text-muted-foreground">Ride Assistance</div>
-                  </div>
-                  <Phone className="h-5 w-5" />
-                </Button>
+                </Button></a>
               </div>
             </Card>
           </div>
         </div>
-
-        {/* Safety Tips */}
-        <Card className="mt-8 p-8 bg-gradient-to-br from-primary/5 to-secondary/5">
-          <h3 className="text-2xl font-bold mb-6 text-center">Safety Tips</h3>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="text-center space-y-2">
-              <div className="text-4xl mb-2">✓</div>
-              <h4 className="font-semibold">Verify Driver Details</h4>
-              <p className="text-sm text-muted-foreground">
-                Always check driver photo, name, and vehicle number before boarding
-              </p>
-            </div>
-            <div className="text-center space-y-2">
-              <div className="text-4xl mb-2">📍</div>
-              <h4 className="font-semibold">Share Your Trip</h4>
-              <p className="text-sm text-muted-foreground">
-                Let friends or family track your ride in real-time
-              </p>
-            </div>
-            <div className="text-center space-y-2">
-              <div className="text-4xl mb-2">👥</div>
-              <h4 className="font-semibold">Trust Your Instincts</h4>
-              <p className="text-sm text-muted-foreground">
-                If something feels wrong, use the SOS button immediately
-              </p>
-            </div>
-          </div>
-        </Card>
       </main>
     </div>
   );
