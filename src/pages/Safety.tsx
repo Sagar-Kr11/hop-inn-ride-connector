@@ -95,6 +95,13 @@ const Safety = () => {
       return;
     }
     const d = data as any;
+    if (d.contacts_total === 0) {
+      toast({
+        title: "🚨 SOS logged",
+        description: "Alert saved, but you have no emergency contacts on file. Add contacts below so SMS can go out next time.",
+      });
+      return;
+    }
     toast({
       title: "🚨 SOS sent",
       description: `Logged. Notified ${d.sms_sent}/${d.contacts_total} contact${d.contacts_total === 1 ? "" : "s"}.`,
