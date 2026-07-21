@@ -81,7 +81,7 @@ const PlaceAutocomplete = ({
       if (bias) {
         req.locationBias = {
           circle: {
-            center: { latitude: bias.lat, longitude: bias.lng },
+            center: { lat: bias.lat, lng: bias.lng },
             radius: bias.radius ?? 30000,
           },
         };
