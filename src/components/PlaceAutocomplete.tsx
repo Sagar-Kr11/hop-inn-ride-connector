@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { loadGoogleMaps } from "@/lib/googleMaps";
 
 interface PlaceSuggestion {
   placeId: string;
   text: string;
   secondary?: string;
+  prediction?: any;
+  isError?: boolean;
 }
 
 interface PlaceAutocompleteProps {
@@ -15,24 +18,6 @@ interface PlaceAutocompleteProps {
   icon?: React.ReactNode;
   bias?: { lat: number; lng: number; radius?: number };
 }
-
-let loaderPromise: Promise<void> | null = null;
-const loadGoogleMaps = () => {
-  if ((window as any).google?.maps?.places) return Promise.resolve();
-  if (loaderPromise) return loaderPromise;
-  const key = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY;
-  const channel = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID;
-  loaderPromise = new Promise((resolve, reject) => {
-    (window as any).__initGMapsPlaces = () => resolve();
-    const s = document.createElement("script");
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&loading=async&callback=__initGMapsPlaces${channel ? `&channel=${channel}` : ""}`;
-    s.async = true;
-    s.defer = true;
-    s.onerror = () => reject(new Error("Failed to load Google Maps"));
-    document.head.appendChild(s);
-  });
-  return loaderPromise;
-};
 
 const PlaceAutocomplete = ({
   value,
@@ -79,12 +64,8 @@ const PlaceAutocomplete = ({
         includedRegionCodes: ["in"],
       };
       if (bias) {
-        req.locationBias = {
-          circle: {
-            center: { lat: bias.lat, lng: bias.lng },
-            radius: bias.radius ?? 30000,
-          },
-        };
+        req.locationBias = { lat: bias.lat, lng: bias.lng };
+        req.origin = { lat: bias.lat, lng: bias.lng };
       }
       const { suggestions: sugg } =
         await AutocompleteSuggestion.fetchAutocompleteSuggestions(req);
@@ -95,6 +76,7 @@ const PlaceAutocomplete = ({
             placeId: s.placePrediction.placeId,
             text: s.placePrediction.mainText?.text ?? s.placePrediction.text?.text ?? "",
             secondary: s.placePrediction.secondaryText?.text,
+            prediction: s.placePrediction,
           })),
       );
       setOpen(true);
@@ -102,7 +84,7 @@ const PlaceAutocomplete = ({
       console.error("Autocomplete error", e);
       const msg = e?.message || String(e);
       setSuggestions([
-        { placeId: `__err_${Date.now()}`, text: "Places lookup failed", secondary: msg.slice(0, 140) },
+        { placeId: `__err_${Date.now()}`, text: "Places lookup failed", secondary: msg.slice(0, 140), isError: true },
       ]);
       setOpen(true);
     }
@@ -115,6 +97,8 @@ const PlaceAutocomplete = ({
   };
 
   const handleSelect = async (s: PlaceSuggestion) => {
+    if (s.isError) return;
+
     const full = s.secondary ? `${s.text}, ${s.secondary}` : s.text;
     onChange(full);
     setOpen(false);
@@ -122,7 +106,7 @@ const PlaceAutocomplete = ({
     try {
       const g = (window as any).google;
       const { Place } = await g.maps.importLibrary("places");
-      const place = new Place({ id: s.placeId });
+      const place = s.prediction?.toPlace ? s.prediction.toPlace() : new Place({ id: s.placeId });
       await place.fetchFields({ fields: ["location"] });
       const loc = place.location;
       onSelect?.({
@@ -153,8 +137,9 @@ const PlaceAutocomplete = ({
             <button
               key={s.placeId}
               type="button"
+              disabled={s.isError}
               onClick={() => handleSelect(s)}
-              className="w-full text-left px-4 py-3 hover:bg-muted transition-colors border-b border-border/50 last:border-0"
+              className="w-full text-left px-4 py-3 hover:bg-muted transition-colors border-b border-border/50 last:border-0 disabled:cursor-not-allowed disabled:hover:bg-transparent"
             >
               <div className="font-medium text-sm">{s.text}</div>
               {s.secondary && (

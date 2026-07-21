@@ -1,23 +1,18 @@
-Plan: Keep movie event demo timings and add a "Curated for demo" label
+## Plan
 
-User decision: keep the filled demo movie showtimes, but clearly label them as curated demo data so users are not misled into thinking they are live listings.
+The location search is failing because the current Google Places Autocomplete request is sending `locationBias` in a shape that the Maps JavaScript API rejects. The visible error confirms the request reaches Google, but Google rejects the bias object before returning suggestions.
 
-Changes:
+## Fix
 
-1. Database migration
-   - Add a `category` text column to the `public.events` table (nullable, default null).
-   - Backfill the 3 seeded movie events to `category = 'movie'`.
-   - Leave existing festival/concert events with `category = null` (or set to 'festival' for consistency).
-   - Update the existing movie-seed migration comment to note the demo-showtime policy.
+1. Update `PlaceAutocomplete` to use the supported Places Autocomplete bias format:
+   - Replace the nested `circle: { center, radius }` value with a simpler point bias object.
+   - Keep `includedRegionCodes: ["in"]` so results stay India-focused.
 
-2. Frontend update in `src/pages/Events.tsx`
-   - Render a small badge/label on event cards where `category === 'movie'` (or similar marker) that says "Curated demo showtime — check local listings".
-   - Keep the existing date/time display intact.
-   - Ensure the label uses the project's semantic color tokens (e.g., `bg-secondary/10 text-secondary`) and does not break the card layout on mobile.
+2. Make selection more reliable:
+   - Ignore the synthetic “Places lookup failed” row so clicking it does not try to fetch details for a fake place id.
+   - Use the modern `placePrediction.toPlace()` path when available to fetch selected place coordinates.
 
-3. Optional: update event seed migration comment
-   - Make the comment explicitly state that showtimes are manually chosen demo values, not live listings.
-
-No changes to the booking flow, map, or SOS features.
-
-Verification: after build, the `/events` page should show the movie event cards with the demo label, while festival/concert cards remain unchanged.
+3. Verify in the preview:
+   - Open `/booking`.
+   - Type a real location like “Sagar” or “PVR Pune”.
+   - Confirm real Google suggestions appear and selecting one fills the field with coordinates.

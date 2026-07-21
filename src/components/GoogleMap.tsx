@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { loadGoogleMaps } from "@/lib/googleMaps";
 
 interface GoogleMapProps {
   className?: string;
@@ -8,28 +9,6 @@ interface GoogleMapProps {
 }
 
 const DEFAULT_CENTER = { lat: 18.5204, lng: 73.8567 }; // Pune
-
-let loaderPromise: Promise<void> | null = null;
-
-const loadGoogleMaps = () => {
-  if (typeof window === "undefined") return Promise.reject(new Error("no window"));
-  if ((window as any).google?.maps) return Promise.resolve();
-  if (loaderPromise) return loaderPromise;
-
-  const key = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY;
-  const channel = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID;
-
-  loaderPromise = new Promise<void>((resolve, reject) => {
-    (window as any).__initGoogleMap = () => resolve();
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&loading=async&callback=__initGoogleMap${channel ? `&channel=${channel}` : ""}`;
-    script.async = true;
-    script.defer = true;
-    script.onerror = () => reject(new Error("Failed to load Google Maps"));
-    document.head.appendChild(script);
-  });
-  return loaderPromise;
-};
 
 const GoogleMap = ({
   className = "",
