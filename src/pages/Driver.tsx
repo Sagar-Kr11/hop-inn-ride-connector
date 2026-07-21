@@ -28,15 +28,16 @@ const Driver = () => {
   const lastPushRef = useRef<number>(0);
 
   useEffect(() => {
-    (async () => {
-      const { data: sess } = await supabase.auth.getSession();
-      const uid = sess.session?.user.id;
+    let cancelled = false;
+    const loadForUser = async (uid: string | null) => {
       if (!uid) {
         navigate("/auth?next=/driver");
         return;
       }
+      if (cancelled) return;
       setUserId(uid);
       const { data } = await supabase.from("drivers").select("*").eq("user_id", uid).maybeSingle();
+      if (cancelled) return;
       if (!data) {
         navigate("/auth?next=/driver");
         return;
@@ -46,7 +47,17 @@ const Driver = () => {
       if (data.current_latitude && data.current_longitude) {
         setLoc({ lat: Number(data.current_latitude), lng: Number(data.current_longitude) });
       }
-    })();
+    };
+    supabase.auth.getSession().then(({ data }) => loadForUser(data.session?.user.id ?? null));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      // React to late OAuth hydration — only re-run if we didn't already have a user
+      if (!userId && session?.user.id) loadForUser(session.user.id);
+    });
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
   // Toggle online / geolocation watch
