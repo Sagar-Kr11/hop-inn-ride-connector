@@ -98,9 +98,13 @@ const PlaceAutocomplete = ({
           })),
       );
       setOpen(true);
-    } catch (e) {
+    } catch (e: any) {
       console.error("Autocomplete error", e);
-      setSuggestions([]);
+      const msg = e?.message || String(e);
+      setSuggestions([
+        { placeId: `__err_${Date.now()}`, text: "Places lookup failed", secondary: msg.slice(0, 140) },
+      ]);
+      setOpen(true);
     }
   };
 
