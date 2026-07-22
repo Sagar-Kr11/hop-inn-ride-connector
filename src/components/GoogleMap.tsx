@@ -10,6 +10,30 @@ interface GoogleMapProps {
 
 const DEFAULT_CENTER = { lat: 18.5204, lng: 73.8567 }; // Pune
 
+// Muted cream/charcoal map style — keeps yellow markers as the only saturated pop.
+// Base is a warm off-white (matches --background cream), roads light gray,
+// water soft blue-gray, parks muted sage, most default POI icons hidden.
+const HOP_INN_MAP_STYLES: google.maps.MapTypeStyle[] = [
+  { elementType: "geometry", stylers: [{ color: "#f5efe0" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#4a4a4a" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#f5efe0" }] },
+  { featureType: "administrative", elementType: "geometry.stroke", stylers: [{ color: "#c9c1ad" }] },
+  { featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
+  { featureType: "administrative.neighborhood", stylers: [{ visibility: "off" }] },
+  { featureType: "poi", stylers: [{ visibility: "off" }] },
+  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#c8d6bf" }] },
+  { featureType: "poi.park", elementType: "labels.text", stylers: [{ visibility: "off" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
+  { featureType: "road", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+  { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#ebe4d1" }] },
+  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#e0d6ba" }] },
+  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#d1c59f" }] },
+  { featureType: "road.local", elementType: "labels.text.fill", stylers: [{ color: "#7a7364" }] },
+  { featureType: "transit", stylers: [{ visibility: "off" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#b8c5cc" }] },
+  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#5c6b73" }] },
+] as any;
+
 const GoogleMap = ({
   className = "",
   center = DEFAULT_CENTER,
@@ -34,6 +58,7 @@ const GoogleMap = ({
           zoomControl: true,
           streetViewControl: false,
           mapTypeControl: false,
+          styles: HOP_INN_MAP_STYLES,
         });
       })
       .catch((e) => setError(e.message));
@@ -58,7 +83,9 @@ const GoogleMap = ({
         new g.maps.Marker({
           position: { lat: m.lat, lng: m.lng },
           map: mapRef.current,
-          label: m.label,
+          label: m.label
+            ? { text: m.label, color: "#1f2937", fontWeight: "700" }
+            : undefined,
           title: m.title,
         }),
     );
