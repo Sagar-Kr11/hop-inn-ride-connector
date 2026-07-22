@@ -23,6 +23,19 @@ const Events = () => {
     },
   });
 
+  const cityCount = (() => {
+    if (!events) return 0;
+    const cities = new Set(
+      events
+        .map((e: any) => {
+          const parts = String(e.location_name || "").split(",");
+          return parts[parts.length - 1]?.trim().toLowerCase();
+        })
+        .filter(Boolean),
+    );
+    return cities.size;
+  })();
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -46,29 +59,29 @@ const Events = () => {
         </div>
       </section>
 
-      <main className="container px-4 py-8">
-        <div className="grid md:grid-cols-4 gap-4 mb-8">
-          <Card className="p-4 text-center">
-            <div className="text-3xl font-bold text-primary mb-1">{events?.length || 0}</div>
+      <main className="container px-4 py-10">
+        <div className="grid md:grid-cols-4 gap-6 mb-12">
+          <Card className="p-5 text-center">
+            <div className="text-3xl font-extrabold text-primary mb-1">{events?.length || 0}</div>
             <div className="text-sm text-muted-foreground">Active Events</div>
           </Card>
-          <Card className="p-4 text-center">
-            <div className="text-3xl font-bold text-secondary mb-1">Live</div>
+          <Card className="p-5 text-center">
+            <div className="text-3xl font-extrabold text-secondary mb-1">Live</div>
             <div className="text-sm text-muted-foreground">Auto Matching</div>
           </Card>
-          <Card className="p-4 text-center">
-            <div className="text-3xl font-bold text-accent mb-1">3</div>
+          <Card className="p-5 text-center">
+            <div className="text-3xl font-extrabold text-foreground mb-1">{cityCount}</div>
             <div className="text-sm text-muted-foreground">Cities Covered</div>
           </Card>
-          <Card className="p-4 text-center">
-            <div className="text-3xl font-bold text-primary mb-1">₹15-40</div>
+          <Card className="p-5 text-center">
+            <div className="text-3xl font-extrabold text-foreground mb-1">₹15–40</div>
             <div className="text-sm text-muted-foreground">Avg Shared Fare</div>
           </Card>
         </div>
 
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold mb-4">Upcoming Events</h2>
-          <p className="text-muted-foreground mb-6">Tap an event to book a shared event ride straight to the venue</p>
+        <div className="mb-8">
+          <h2 className="text-3xl font-extrabold mb-3">Upcoming Events</h2>
+          <p className="text-sm text-muted-foreground">Tap an event to book a shared ride straight to the venue</p>
         </div>
 
         {isLoading ? (
@@ -76,12 +89,12 @@ const Events = () => {
         ) : !events || events.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">No upcoming events found</div>
         ) : (
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 gap-8">
             {events.map((event) => {
               const eventDate = new Date(event.event_date);
               const bookingHref = `/booking?event_id=${event.id}&event_name=${encodeURIComponent(event.name)}&lat=${event.location_latitude}&lng=${event.location_longitude}&dest=${encodeURIComponent(event.location_name)}`;
               return (
-                <Card key={event.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                <Card key={event.id} className="overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 border border-border/60">
                   {event.image_url && (
                     <div className="h-48 overflow-hidden">
                       <img src={event.image_url} alt={event.name} className="w-full h-full object-cover" />
