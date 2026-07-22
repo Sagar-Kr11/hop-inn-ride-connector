@@ -20,18 +20,19 @@ A shared auto-rickshaw booking web app for urban India. Passengers and drivers g
 
 ## How This Was Built
 
-This project was built using **Lovable**, an AI-assisted app builder, for implementation. Architecture decisions, debugging, feature specifications, and QA were driven by the developer working alongside **Claude** (Anthropic's AI assistant) for planning and diagnosis.
+This project was built by Sagar Kumar, who owned the architecture, product decisions, debugging, and testing throughout. Implementation was accelerated using **Lovable**, an AI-assisted app builder — the git history includes commits attributed to the Lovable bot because that's genuinely how code changes were generated and applied, and it's disclosed here rather than hidden.
 
-The git history includes commits attributed to the Lovable bot — that is genuinely how the code was generated and applied, and it is disclosed here rather than hidden.
-
-The developer's actual contributions include:
+Sagar's actual contributions include:
 
 - **Defining requirements and product direction**: dual passenger/driver flows, route- and event-based matching, safety-first UX, and an urban Indian visual identity (auto yellow, deep green, charcoal).
-- **Diagnosing real bugs from live testing**, for example:
-  - Identified the `locationBias` parameter shape mismatch from a live error screenshot (`{"circle":{"center":{"lat":..., "lng":...}}}` vs. the JS SDK's expected `LatLngLiteral`) and fixed the autocomplete integration.
-  - Traced an SOS "bounce to login" issue to OAuth session-hydration timing and fixed the auth-state listener logic.
-- **Making product and design decisions**: the restricted color system (yellow for primary actions only, green for status only), the custom muted Google Maps style, the event curation strategy, and the decision to remove placeholder app-store content.
-- **Iterating based on real testing**: verifying OTP delivery, SOS contact normalization, ride request flows, and event showtime display across devices.
+- **Designing the system architecture**: the data model (roles, drivers, rides, events, emergency contacts), the auth strategy (Google OAuth as the primary session-minting path), and the real-time matching flow.
+- **Diagnosing real bugs from live testing**, including:
+  - Identifying a `locationBias` parameter shape mismatch (`lat`/`lng` vs. `latitude`/`longitude`) directly from a live error message during manual testing, and directing the fix.
+  - Tracing an SOS "bounce to login" bug to OAuth session-hydration timing through hands-on debugging.
+  - Catching a timezone-offset bug that was displaying movie showtimes incorrectly, by testing the live app and cross-checking the displayed times.
+- **Driving the UI/UX redesign**: defining the restricted color system (yellow for primary actions only, green for status only), directing the custom muted Google Maps style, and identifying and removing placeholder/fake content (mobile app-store badges, an AI-generated mockup image) that didn't belong in a production-facing app.
+- **Curating real product data**: selecting and verifying genuine events (festivals, movie releases) rather than using placeholder data.
+- **QA and iteration**: testing every feature end-to-end after each change and reporting exact failures back for fixes, rather than accepting first-pass implementations.
 
 ---
 
