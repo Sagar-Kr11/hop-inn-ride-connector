@@ -209,7 +209,7 @@ const Driver = () => {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container px-4 py-6">
-        <Card className="p-6 mb-6 shadow-lg bg-[#face4a]">
+        <Card className="p-6 mb-8 shadow-sm bg-card border border-border">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold mb-2">Driver Dashboard</h1>

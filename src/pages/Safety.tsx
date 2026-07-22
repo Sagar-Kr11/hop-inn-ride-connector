@@ -149,12 +149,12 @@ const Safety = () => {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container px-4 py-8">
-        <div className="text-center mb-12">
-          <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-destructive/10 mb-4">
-            <Shield className="h-10 w-10 text-destructive" />
+        <div className="text-center mb-14">
+          <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-destructive/10 mb-5">
+            <Shield className="h-10 w-10 text-destructive" strokeWidth={1.75} />
           </div>
-          <h1 className="text-4xl font-bold mb-4">Your Safety Matters</h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight mb-4">Your Safety Matters</h1>
+          <p className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto">
             Hop-Inn keeps riders and drivers safe with instant SOS, verified drivers, and live trip sharing.
           </p>
         </div>
