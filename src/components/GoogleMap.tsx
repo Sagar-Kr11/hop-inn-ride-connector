@@ -13,7 +13,7 @@ const DEFAULT_CENTER = { lat: 18.5204, lng: 73.8567 }; // Pune
 // Muted cream/charcoal map style — keeps yellow markers as the only saturated pop.
 // Base is a warm off-white (matches --background cream), roads light gray,
 // water soft blue-gray, parks muted sage, most default POI icons hidden.
-const HOP_INN_MAP_STYLES: google.maps.MapTypeStyle[] = [
+const HOP_INN_MAP_STYLES: any[] = [
   { elementType: "geometry", stylers: [{ color: "#f5efe0" }] },
   { elementType: "labels.text.fill", stylers: [{ color: "#4a4a4a" }] },
   { elementType: "labels.text.stroke", stylers: [{ color: "#f5efe0" }] },
