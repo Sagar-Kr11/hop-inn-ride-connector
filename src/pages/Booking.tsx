@@ -320,7 +320,12 @@ const Booking = () => {
                             <div className="flex items-center gap-3 mb-2">
                               <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-2xl">🛺</div>
                               <div>
-                                <h4 className="font-semibold text-lg">{d.vehicle_number}</h4>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-semibold text-lg">{d.vehicle_number}</h4>
+                                  {d.onRoute && (
+                                    <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground font-bold">On your route</span>
+                                  )}
+                                </div>
                                 <p className="text-sm text-muted-foreground capitalize">{d.vehicle_type}</p>
                               </div>
                             </div>
