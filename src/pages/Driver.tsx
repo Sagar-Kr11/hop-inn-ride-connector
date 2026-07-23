@@ -15,7 +15,15 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { haversineKm } from "@/lib/utils";
+import { haversineKm, pointToSegmentKm } from "@/lib/utils";
+
+type ActiveRoute = {
+  id: string;
+  start: { lat: number; lng: number };
+  end: { lat: number; lng: number };
+  name: string;
+};
+const ROUTE_THRESHOLD_KM = 2.5;
 
 const Driver = () => {
   const navigate = useNavigate();
