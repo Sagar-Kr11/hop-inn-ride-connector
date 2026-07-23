@@ -11,7 +11,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import GoogleMap from "@/components/GoogleMap";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
