@@ -347,16 +347,37 @@ const Driver = () => {
             </Card>
 
             <Card className="p-6 shadow-lg">
-              <h3 className="text-xl font-bold mb-4">Nearby Passenger Requests</h3>
-              <p className="text-sm text-muted-foreground mb-4">Live requests where no driver is assigned yet.</p>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold">Nearby Passenger Requests</h3>
+                {activeRoute ? (
+                  <span className="text-xs px-2 py-1 rounded-full bg-secondary/15 text-secondary font-medium">
+                    Route: {activeRoute.name}
+                  </span>
+                ) : (
+                  <Link to="/driver/route" className="text-xs text-primary underline">Set a route</Link>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                {activeRoute
+                  ? "Shared-route rides matching your line are shown first."
+                  : "Live requests where no driver is assigned yet."}
+              </p>
               <div className="space-y-3">
                 {requests.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-6">No open requests right now.</p>
                 ) : (
                   requests.map((r) => (
-                    <Card key={r.id} className="p-4 hover:shadow-md transition-shadow">
+                    <Card key={r.id} className={`p-4 hover:shadow-md transition-shadow ${r.onRoute ? "border-2 border-secondary/60 bg-secondary/5" : ""}`}>
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            {r.onRoute && (
+                              <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground font-bold">On your route</span>
+                            )}
+                            {activeRoute && !r.onRoute && r.ride_type === "shared_route" && (
+                              <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">Off route</span>
+                            )}
+                          </div>
                           <p className="text-sm mb-1"><span className="text-primary">●</span> {r.pickup_location}</p>
                           <p className="text-sm mb-2"><span className="text-secondary">●</span> {r.dropoff_location}</p>
                           <p className="text-xs text-muted-foreground capitalize">
