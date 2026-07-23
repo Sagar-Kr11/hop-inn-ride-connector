@@ -48,6 +48,7 @@ const Auth = () => {
   const [registering, setRegistering] = useState(false);
   const [tab, setTab] = useState<string>(() => (searchParams.get("tab") === "driver" ? "driver" : "passenger"));
   const [driverNotice, setDriverNotice] = useState("");
+  const [driverRegistrationOpen, setDriverRegistrationOpen] = useState(() => driverIntent !== "login");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -129,6 +130,7 @@ const Auth = () => {
           console.log("[Auth] navigating returning driver to", driverNext);
           navigate(driverNext, { replace: true });
         } else {
+          setDriverRegistrationOpen(intent !== "login");
           setDriverNotice(
             intent === "login"
               ? "No driver profile found for this Google account. Use Register as Driver if this is a new account, or sign in with the account you used before."
@@ -171,6 +173,7 @@ const Auth = () => {
         console.log("[Auth] navigating driver after Google to", driverNext);
         navigate(driverNext, { replace: true });
       } else {
+        setDriverRegistrationOpen(intent !== "login");
         setDriverNotice(
           intent === "login"
             ? "No driver profile found for this Google account. Use Register as Driver if this is a new account, or sign in with the account you used before."
@@ -221,6 +224,7 @@ const Auth = () => {
     }
     setRegistering(true);
     setDriverNotice("");
+    setDriverRegistrationOpen(true);
     console.log("[Auth] driver registration submitted for", session.user.id);
 
     // Defensive pre-check: if a drivers row already exists, skip insert and route.
@@ -298,7 +302,8 @@ const Auth = () => {
     navigate(driverNext, { replace: true });
   };
 
-  const needsDriverProfile = tab === "driver" && session?.user && hasDriverRow === false;
+  const needsDriverProfile = tab === "driver" && session?.user && hasDriverRow === false && driverRegistrationOpen;
+  const driverNeedsLoginChoice = tab === "driver" && session?.user && hasDriverRow === false && !driverRegistrationOpen;
   const driverAwaitingCheck = tab === "driver" && session?.user && hasDriverRow === null;
 
   return (
@@ -318,7 +323,7 @@ const Auth = () => {
             <p className="text-muted-foreground">Sign in or create your account — same button works for both.</p>
           </div>
 
-          <Tabs value={tab} onValueChange={setTab} className="w-full">
+          <Tabs value={tab} onValueChange={(value) => { setTab(value); setDriverNotice(""); }} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="passenger">Passenger</TabsTrigger>
               <TabsTrigger value="driver">Driver</TabsTrigger>
@@ -394,9 +399,13 @@ const Auth = () => {
                 </p>
               ) : !session ? (
                 <>
-                  <Button variant="outline" className="w-full" onClick={() => handleGoogle("driver")} disabled={googleLoading}>
+                  <Button className="w-full" size="lg" onClick={() => handleGoogle("driver", "login")} disabled={googleLoading}>
                     {googleLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Continue with Google (sign in or sign up)
+                    Login as Driver
+                  </Button>
+                  <Button variant="outline" className="w-full" onClick={() => handleGoogle("driver", "register")} disabled={googleLoading}>
+                    {googleLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Register as Driver
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
                     Returning drivers go straight to the dashboard. New drivers add vehicle & permit next.
@@ -415,11 +424,52 @@ const Auth = () => {
                 <p className="text-sm text-muted-foreground text-center flex items-center justify-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" /> Looking up your driver profile…
                 </p>
+              ) : driverNeedsLoginChoice ? (
+                <div className="space-y-4">
+                  <div className="rounded-lg bg-primary/10 p-3 text-sm">
+                    Signed in as <strong>{session.user.email}</strong>.
+                  </div>
+                  {driverNotice && (
+                    <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                      {driverNotice}
+                    </div>
+                  )}
+                  <Button className="w-full" size="lg" onClick={() => handleGoogle("driver", "login")} disabled={googleLoading}>
+                    {googleLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Login as Driver
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setDriverRegistrationOpen(true);
+                      setDriverNotice("Complete your vehicle details to register this Google account as a Hop-Inn driver.");
+                    }}
+                  >
+                    Register as Driver
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full"
+                    onClick={async () => {
+                      await supabase.auth.signOut();
+                      setHasDriverRow(null);
+                      setDriverRegistrationOpen(false);
+                    }}
+                  >
+                    Use a different account
+                  </Button>
+                </div>
               ) : needsDriverProfile ? (
                 <>
                   <div className="rounded-lg bg-primary/10 p-3 text-sm">
                     Signed in as <strong>{session.user.email}</strong>. Complete your driver profile below.
                   </div>
+                  {driverNotice && (
+                    <div className="rounded-lg border border-primary/30 bg-primary/10 p-3 text-sm">
+                      {driverNotice}
+                    </div>
+                  )}
                   <div>
                     <Label htmlFor="vehicle">Vehicle Number</Label>
                     <Input id="vehicle" placeholder="MH XX XX XXXX" value={vehicleNumber} onChange={(e) => setVehicleNumber(e.target.value)} className="mt-2" />
@@ -437,6 +487,8 @@ const Auth = () => {
                     className="w-full"
                     onClick={async () => {
                       await supabase.auth.signOut();
+                      setHasDriverRow(null);
+                      setDriverRegistrationOpen(false);
                     }}
                   >
                     Use a different account
