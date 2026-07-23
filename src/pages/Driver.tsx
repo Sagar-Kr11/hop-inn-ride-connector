@@ -110,13 +110,13 @@ const Driver = () => {
 
   // Load active route for this driver
   useEffect(() => {
-    if (!driverRow?.id) return;
+    if (!userId) return;
     let cancelled = false;
     const loadRoute = async () => {
       const { data } = await supabase
         .from("driver_routes")
         .select("*")
-        .eq("driver_id", driverRow.id)
+        .eq("driver_id", userId)
         .eq("is_active", true)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -135,7 +135,8 @@ const Driver = () => {
     };
     loadRoute();
     return () => { cancelled = true; };
-  }, [driverRow?.id]);
+  }, [userId]);
+
 
   // Load nearby search-status rides
   useEffect(() => {
