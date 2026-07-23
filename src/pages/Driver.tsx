@@ -27,6 +27,8 @@ const ROUTE_THRESHOLD_KM = 2.5;
 
 const Driver = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const justRegistered = (location.state as any)?.justRegistered === true;
   const [userId, setUserId] = useState<string | null>(null);
   const [driverRow, setDriverRow] = useState<any>(null);
   const [isOnline, setIsOnline] = useState(false);
@@ -38,7 +40,7 @@ const Driver = () => {
 
   useEffect(() => {
     let cancelled = false;
-    const justRegistered = (typeof window !== "undefined" && (window.history.state?.usr?.justRegistered)) === true;
+    console.log("[Driver] mount; justRegistered flag =", justRegistered);
     const loadForUser = async (uid: string | null, allowRetry = justRegistered) => {
       if (!uid) {
         navigate("/auth?tab=driver&next=/driver");
