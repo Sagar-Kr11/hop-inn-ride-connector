@@ -28,6 +28,8 @@ const Auth = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const next = sanitizeNext(searchParams.get("next"));
+  const driverNext = next === "/" ? "/driver" : next;
+  const driverIntent = searchParams.get("intent") === "login" ? "login" : "register";
 
   const [phoneNumber, setPhoneNumber] = useState("");
   const [name, setName] = useState("");
@@ -45,6 +47,7 @@ const Auth = () => {
   const [permitNumber, setPermitNumber] = useState("");
   const [registering, setRegistering] = useState(false);
   const [tab, setTab] = useState<string>(() => (searchParams.get("tab") === "driver" ? "driver" : "passenger"));
+  const [driverNotice, setDriverNotice] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -72,26 +75,33 @@ const Auth = () => {
         setHasDriverRow(null);
         return;
       }
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("drivers")
         .select("id")
         .eq("user_id", session.user.id)
         .maybeSingle();
       if (!active) return;
+      console.log("[Auth] session driver-row lookup ->", !!data, error?.message ?? "");
       setHasDriverRow(!!data);
+      if (data) {
+        setDriverNotice("");
+      } else if (tab === "driver" && driverIntent === "login") {
+        setDriverNotice("No driver profile found for this Google account. Use Register as Driver if this is a new account, or sign in with the account you used before.");
+      }
     })();
     return () => {
       active = false;
     };
-  }, [session?.user?.id]);
+  }, [session?.user?.id, tab, driverIntent]);
 
   // Dedicated redirect effect — fires whenever any of these settle,
   // independent of the drivers-query effect, so no tab/session race can strand the user.
   useEffect(() => {
     if (tab === "driver" && session?.user?.id && hasDriverRow === true) {
-      navigate("/driver", { replace: true });
+      console.log("[Auth] confirmed existing driver profile; navigating to", driverNext);
+      navigate(driverNext, { replace: true });
     }
-  }, [tab, session?.user?.id, hasDriverRow, navigate]);
+  }, [tab, session?.user?.id, hasDriverRow, navigate, driverNext]);
 
   const checkDriverRow = useCallback(async (userId: string) => {
     const { data } = await supabase
@@ -102,18 +112,28 @@ const Auth = () => {
     return !!data;
   }, []);
 
-  const handleGoogle = async (mode: "passenger" | "driver") => {
+  const handleGoogle = async (mode: "passenger" | "driver", intent: "login" | "register" = "register") => {
     setGoogleLoading(true);
+    setDriverNotice("");
+    console.log("[Auth] Google auth started", { mode, intent });
 
     // If already signed in, don't re-run OAuth — just route correctly.
     if (session?.user?.id) {
       if (mode === "driver") {
+        console.log("[Auth] already signed in; checking driver profile", session.user.id);
         const exists = await checkDriverRow(session.user.id);
+        console.log("[Auth] already-signed-in driver profile exists ->", exists);
+        setHasDriverRow(exists);
         setGoogleLoading(false);
         if (exists) {
-          navigate("/driver", { replace: true });
+          console.log("[Auth] navigating returning driver to", driverNext);
+          navigate(driverNext, { replace: true });
         } else {
-          setHasDriverRow(false); // reveal the registration form
+          setDriverNotice(
+            intent === "login"
+              ? "No driver profile found for this Google account. Use Register as Driver if this is a new account, or sign in with the account you used before."
+              : "Complete your vehicle details to register this Google account as a Hop-Inn driver."
+          );
         }
       } else {
         setGoogleLoading(false);
@@ -122,7 +142,9 @@ const Auth = () => {
       return;
     }
 
-    const nextPath = mode === "driver" ? "/auth?tab=driver" : next;
+    const nextPath = mode === "driver"
+      ? `/auth?tab=driver&next=${encodeURIComponent(driverNext)}&intent=${intent}`
+      : next;
     const result = await lovable.auth.signInWithOAuth("google", {
       redirect_uri: `${window.location.origin}${nextPath}`,
     });
@@ -137,13 +159,24 @@ const Auth = () => {
     // Re-read the session directly rather than waiting on effects.
     const { data } = await supabase.auth.getSession();
     const uid = data.session?.user?.id;
+    console.log("[Auth] Google auth returned inline; session user ->", !!uid);
     setSession(data.session);
     setGoogleLoading(false);
     if (!uid) return;
     if (mode === "driver") {
       const exists = await checkDriverRow(uid);
+      console.log("[Auth] post-Google driver profile exists ->", exists);
       setHasDriverRow(exists);
-      if (exists) navigate("/driver", { replace: true });
+      if (exists) {
+        console.log("[Auth] navigating driver after Google to", driverNext);
+        navigate(driverNext, { replace: true });
+      } else {
+        setDriverNotice(
+          intent === "login"
+            ? "No driver profile found for this Google account. Use Register as Driver if this is a new account, or sign in with the account you used before."
+            : "Complete your vehicle details to register this Google account as a Hop-Inn driver."
+        );
+      }
     } else {
       navigate(next, { replace: true });
     }
@@ -187,14 +220,18 @@ const Auth = () => {
       return;
     }
     setRegistering(true);
+    setDriverNotice("");
+    console.log("[Auth] driver registration submitted for", session.user.id);
 
     // Defensive pre-check: if a drivers row already exists, skip insert and route.
     const already = await checkDriverRow(session.user.id);
+    console.log("[Auth] driver registration pre-check exists ->", already);
     if (already) {
       setRegistering(false);
       setHasDriverRow(true);
       toast({ title: "Already registered", description: "You're already a Hop-Inn driver. Taking you to the dashboard." });
-      navigate("/driver", { replace: true });
+      console.log("[Auth] registration skipped; navigating existing driver to", driverNext);
+      navigate(driverNext, { replace: true });
       return;
     }
 
@@ -214,7 +251,8 @@ const Auth = () => {
         setHasDriverRow(true);
         setRegistering(false);
         toast({ title: "Already registered", description: "This account is already a Hop-Inn driver." });
-        navigate("/driver", { replace: true });
+        console.log("[Auth] duplicate registration; navigating to", driverNext);
+        navigate(driverNext, { replace: true });
         return;
       }
       console.error("[Auth] drivers insert failed", dErr);
@@ -255,9 +293,9 @@ const Auth = () => {
     await supabase.from("user_roles").insert({ user_id: session.user.id, role: "driver" });
     setHasDriverRow(true);
     setRegistering(false);
-    console.log("[Auth] confirmed; navigating to /driver");
+    console.log("[Auth] confirmed; navigating to", driverNext);
     toast({ title: "Welcome, driver!", description: "Your registration is submitted for verification." });
-    navigate("/driver", { replace: true, state: { justRegistered: true } });
+    navigate(driverNext, { replace: true });
   };
 
   const needsDriverProfile = tab === "driver" && session?.user && hasDriverRow === false;
