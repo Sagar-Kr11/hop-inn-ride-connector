@@ -7,6 +7,7 @@ import { RideAssistant } from "@/components/RideAssistant";
 import Home from "./pages/Home";
 import Booking from "./pages/Booking";
 import Driver from "./pages/Driver";
+import DriverRoute from "./pages/DriverRoute";
 import Events from "./pages/Events";
 import Auth from "./pages/Auth";
 import Safety from "./pages/Safety";
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/" element={<Home />} />
           <Route path="/booking" element={<Booking />} />
           <Route path="/driver" element={<Driver />} />
+          <Route path="/driver/route" element={<DriverRoute />} />
           <Route path="/events" element={<Events />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/safety" element={<Safety />} />

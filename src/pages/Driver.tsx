@@ -15,7 +15,15 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { haversineKm } from "@/lib/utils";
+import { haversineKm, pointToSegmentKm } from "@/lib/utils";
+
+type ActiveRoute = {
+  id: string;
+  start: { lat: number; lng: number };
+  end: { lat: number; lng: number };
+  name: string;
+};
+const ROUTE_THRESHOLD_KM = 2.5;
 
 const Driver = () => {
   const navigate = useNavigate();
@@ -24,6 +32,7 @@ const Driver = () => {
   const [isOnline, setIsOnline] = useState(false);
   const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [requests, setRequests] = useState<any[]>([]);
+  const [activeRoute, setActiveRoute] = useState<ActiveRoute | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const lastPushRef = useRef<number>(0);
 
@@ -99,23 +108,66 @@ const Driver = () => {
     };
   }, []);
 
+  // Load active route for this driver
+  useEffect(() => {
+    if (!driverRow?.id) return;
+    let cancelled = false;
+    const loadRoute = async () => {
+      const { data } = await supabase
+        .from("driver_routes")
+        .select("*")
+        .eq("driver_id", driverRow.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data && data.start_latitude && data.end_latitude) {
+        setActiveRoute({
+          id: data.id,
+          name: data.route_name,
+          start: { lat: Number(data.start_latitude), lng: Number(data.start_longitude) },
+          end: { lat: Number(data.end_latitude), lng: Number(data.end_longitude) },
+        });
+      } else {
+        setActiveRoute(null);
+      }
+    };
+    loadRoute();
+    return () => { cancelled = true; };
+  }, [driverRow?.id]);
+
   // Load nearby search-status rides
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase
         .from("rides")
-        .select("id, pickup_location, dropoff_location, pickup_latitude, pickup_longitude, fare, ride_type, created_at, passenger_id")
+        .select("id, pickup_location, dropoff_location, pickup_latitude, pickup_longitude, dropoff_latitude, dropoff_longitude, fare, ride_type, created_at, passenger_id")
         .eq("status", "searching")
         .is("driver_id", null)
         .order("created_at", { ascending: false })
         .limit(20);
-      const rows = (data || []).map((r) => ({
-        ...r,
-        distanceKm: loc
-          ? haversineKm(loc, { lat: Number(r.pickup_latitude), lng: Number(r.pickup_longitude) })
-          : null,
-      }));
-      rows.sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
+      const rows = (data || []).map((r) => {
+        const pickup = { lat: Number(r.pickup_latitude), lng: Number(r.pickup_longitude) };
+        const dropoff = { lat: Number(r.dropoff_latitude), lng: Number(r.dropoff_longitude) };
+        let onRoute = false;
+        if (activeRoute && r.ride_type === "shared_route") {
+          const dPickup = pointToSegmentKm(pickup, activeRoute.start, activeRoute.end);
+          const dDrop = pointToSegmentKm(dropoff, activeRoute.start, activeRoute.end);
+          onRoute = dPickup <= ROUTE_THRESHOLD_KM && dDrop <= ROUTE_THRESHOLD_KM;
+        }
+        return {
+          ...r,
+          distanceKm: loc ? haversineKm(loc, pickup) : null,
+          onRoute,
+        };
+      });
+      rows.sort((a, b) => {
+        if (activeRoute) {
+          if (a.onRoute !== b.onRoute) return a.onRoute ? -1 : 1;
+        }
+        return (a.distanceKm ?? 999) - (b.distanceKm ?? 999);
+      });
       setRequests(rows);
     };
     load();
@@ -126,7 +178,7 @@ const Driver = () => {
     return () => {
       supabase.removeChannel(chan);
     };
-  }, [loc?.lat, loc?.lng]);
+  }, [loc?.lat, loc?.lng, activeRoute?.id]);
 
   const acceptRide = async (rideId: string) => {
     if (!driverRow) return;
@@ -295,16 +347,37 @@ const Driver = () => {
             </Card>
 
             <Card className="p-6 shadow-lg">
-              <h3 className="text-xl font-bold mb-4">Nearby Passenger Requests</h3>
-              <p className="text-sm text-muted-foreground mb-4">Live requests where no driver is assigned yet.</p>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold">Nearby Passenger Requests</h3>
+                {activeRoute ? (
+                  <span className="text-xs px-2 py-1 rounded-full bg-secondary/15 text-secondary font-medium">
+                    Route: {activeRoute.name}
+                  </span>
+                ) : (
+                  <Link to="/driver/route" className="text-xs text-primary underline">Set a route</Link>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                {activeRoute
+                  ? "Shared-route rides matching your line are shown first."
+                  : "Live requests where no driver is assigned yet."}
+              </p>
               <div className="space-y-3">
                 {requests.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-6">No open requests right now.</p>
                 ) : (
                   requests.map((r) => (
-                    <Card key={r.id} className="p-4 hover:shadow-md transition-shadow">
+                    <Card key={r.id} className={`p-4 hover:shadow-md transition-shadow ${r.onRoute ? "border-2 border-secondary/60 bg-secondary/5" : ""}`}>
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            {r.onRoute && (
+                              <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground font-bold">On your route</span>
+                            )}
+                            {activeRoute && !r.onRoute && r.ride_type === "shared_route" && (
+                              <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">Off route</span>
+                            )}
+                          </div>
                           <p className="text-sm mb-1"><span className="text-primary">●</span> {r.pickup_location}</p>
                           <p className="text-sm mb-2"><span className="text-secondary">●</span> {r.dropoff_location}</p>
                           <p className="text-xs text-muted-foreground capitalize">
@@ -331,8 +404,8 @@ const Driver = () => {
             <Card className="p-6 shadow-lg">
               <h3 className="font-semibold text-lg mb-4">Quick Actions</h3>
               <div className="space-y-3">
-                <Link to="/booking"><Button variant="charcoalOutline" className="w-full justify-start" size="lg">
-                  <Route className="mr-3 h-5 w-5" />Set Route
+                <Link to="/driver/route"><Button variant="charcoalOutline" className="w-full justify-start" size="lg">
+                  <Route className="mr-3 h-5 w-5" />{activeRoute ? "Edit Route" : "Set Route"}
                 </Button></Link>
                 <Link to="/history"><Button variant="charcoalOutline" className="w-full justify-start" size="lg">
                   <IndianRupee className="mr-3 h-5 w-5" />Earnings Report

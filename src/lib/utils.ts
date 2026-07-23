@@ -37,3 +37,34 @@ export function estimateFare(
   const share = total / Math.max(1, expectedPassengers);
   return Math.max(10, Math.round(share));
 }
+
+/**
+ * Approx distance in km from a point P to the line segment A->B, using an
+ * equirectangular projection around A. Good enough for city-scale route matching
+ * (a few km error at worst); avoids pulling in PostGIS/turf.
+ */
+export function pointToSegmentKm(
+  p: { lat: number; lng: number },
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const toRad = (v: number) => (v * Math.PI) / 180;
+  const R = 6371;
+  const cosLat = Math.cos(toRad(a.lat));
+  const project = (q: { lat: number; lng: number }) => ({
+    x: R * toRad(q.lng - a.lng) * cosLat,
+    y: R * toRad(q.lat - a.lat),
+  });
+  const A = { x: 0, y: 0 };
+  const B = project(b);
+  const P = project(p);
+  const dx = B.x - A.x;
+  const dy = B.y - A.y;
+  const len2 = dx * dx + dy * dy;
+  let t = len2 === 0 ? 0 : ((P.x - A.x) * dx + (P.y - A.y) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  const cx = A.x + t * dx;
+  const cy = A.y + t * dy;
+  return Math.hypot(P.x - cx, P.y - cy);
+}
+
