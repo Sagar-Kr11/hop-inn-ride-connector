@@ -49,14 +49,19 @@ const Driver = () => {
       if (cancelled) return;
       setUserId(uid);
       let { data } = await supabase.from("drivers").select("*").eq("user_id", uid).maybeSingle();
+      console.log("[Driver] initial drivers lookup for", uid, "->", !!data);
       if (!data && allowRetry) {
-        // Post-registration race: row may not be visible yet — retry briefly before bouncing.
-        await new Promise((r) => setTimeout(r, 600));
-        if (cancelled) return;
-        ({ data } = await supabase.from("drivers").select("*").eq("user_id", uid).maybeSingle());
+        // Secondary safety net for post-registration race.
+        for (let attempt = 1; attempt <= 3 && !data; attempt++) {
+          await new Promise((r) => setTimeout(r, 400));
+          if (cancelled) return;
+          ({ data } = await supabase.from("drivers").select("*").eq("user_id", uid).maybeSingle());
+          console.log("[Driver] safety-net retry", attempt, "->", !!data);
+        }
       }
       if (cancelled) return;
       if (!data) {
+        console.warn("[Driver] no drivers row after retries; bouncing to /auth");
         navigate("/auth?tab=driver&next=/driver");
         return;
       }
