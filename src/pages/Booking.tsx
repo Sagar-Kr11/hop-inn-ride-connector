@@ -66,8 +66,9 @@ const Booking = () => {
     return () => { cancelled = true; };
   }, [navigate]);
 
-
+  useEffect(() => {
     let cancelled = false;
+
     const load = async () => {
       const { data, error } = await supabase
         .from("drivers")
