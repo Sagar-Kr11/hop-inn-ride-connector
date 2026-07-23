@@ -222,7 +222,7 @@ const Auth = () => {
     await supabase.from("user_roles").insert({ user_id: session.user.id, role: "driver" });
     setRegistering(false);
     toast({ title: "Welcome, driver!", description: "Your registration is submitted for verification." });
-    navigate("/driver", { replace: true });
+    navigate("/driver", { replace: true, state: { justRegistered: true } });
   };
 
   const needsDriverProfile = tab === "driver" && session?.user && hasDriverRow === false;
