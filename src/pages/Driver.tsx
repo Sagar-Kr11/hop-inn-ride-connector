@@ -11,7 +11,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import GoogleMap from "@/components/GoogleMap";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -27,10 +27,9 @@ const ROUTE_THRESHOLD_KM = 2.5;
 
 const Driver = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const justRegistered = (location.state as any)?.justRegistered === true;
   const [userId, setUserId] = useState<string | null>(null);
   const [driverRow, setDriverRow] = useState<any>(null);
+  const [checkingAccess, setCheckingAccess] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
   const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [requests, setRequests] = useState<any[]>([]);
@@ -40,29 +39,42 @@ const Driver = () => {
 
   useEffect(() => {
     let cancelled = false;
-    console.log("[Driver] mount; justRegistered flag =", justRegistered);
-    const loadForUser = async (uid: string | null, allowRetry = justRegistered) => {
+    let hydrationTimer: ReturnType<typeof setTimeout> | null = null;
+    console.log("[Driver] mount; checking auth and driver profile");
+
+    const redirectToDriverAuth = () => {
+      console.warn("[Driver] redirecting to driver auth");
+      navigate("/auth?tab=driver&next=/driver");
+    };
+
+    const loadForUser = async (uid: string | null) => {
       if (!uid) {
-        navigate("/auth?tab=driver&next=/driver");
+        console.log("[Driver] no session from initial check; waiting briefly for OAuth/session hydration");
+        setCheckingAccess(true);
+        hydrationTimer = setTimeout(async () => {
+          if (cancelled) return;
+          const { data } = await supabase.auth.getSession();
+          const lateUid = data.session?.user.id ?? null;
+          console.log("[Driver] late session check ->", !!lateUid);
+          if (lateUid) {
+            loadForUser(lateUid);
+          } else {
+            setCheckingAccess(false);
+            redirectToDriverAuth();
+          }
+        }, 800);
         return;
       }
       if (cancelled) return;
+      setCheckingAccess(true);
       setUserId(uid);
-      let { data } = await supabase.from("drivers").select("*").eq("user_id", uid).maybeSingle();
-      console.log("[Driver] initial drivers lookup for", uid, "->", !!data);
-      if (!data && allowRetry) {
-        // Secondary safety net for post-registration race.
-        for (let attempt = 1; attempt <= 3 && !data; attempt++) {
-          await new Promise((r) => setTimeout(r, 400));
-          if (cancelled) return;
-          ({ data } = await supabase.from("drivers").select("*").eq("user_id", uid).maybeSingle());
-          console.log("[Driver] safety-net retry", attempt, "->", !!data);
-        }
-      }
+      const { data, error } = await supabase.from("drivers").select("*").eq("user_id", uid).maybeSingle();
+      console.log("[Driver] drivers lookup for", uid, "->", !!data, error?.message ?? "");
       if (cancelled) return;
       if (!data) {
-        console.warn("[Driver] no drivers row after retries; bouncing to /auth");
-        navigate("/auth?tab=driver&next=/driver");
+        setCheckingAccess(false);
+        console.warn("[Driver] no driver profile for signed-in user; bouncing to driver auth");
+        redirectToDriverAuth();
         return;
       }
       setDriverRow(data);
@@ -70,14 +82,17 @@ const Driver = () => {
       if (data.current_latitude && data.current_longitude) {
         setLoc({ lat: Number(data.current_latitude), lng: Number(data.current_longitude) });
       }
+      setCheckingAccess(false);
+      console.log("[Driver] driver dashboard access confirmed");
     };
     supabase.auth.getSession().then(({ data }) => loadForUser(data.session?.user.id ?? null));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      // React to late OAuth hydration — only re-run if we didn't already have a user
-      if (!userId && session?.user.id) loadForUser(session.user.id);
+      console.log("[Driver] auth state changed; user ->", !!session?.user.id);
+      if (session?.user.id) loadForUser(session.user.id);
     });
     return () => {
       cancelled = true;
+      if (hydrationTimer) clearTimeout(hydrationTimer);
       sub.subscription.unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -271,6 +286,21 @@ const Driver = () => {
       title: r.pickup_location,
     })),
   ];
+
+  if (checkingAccess) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container px-4 py-16">
+          <Card className="mx-auto max-w-md p-8 text-center shadow-sm">
+            <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-primary" />
+            <h1 className="text-2xl font-bold mb-2">Opening driver dashboard</h1>
+            <p className="text-sm text-muted-foreground">Checking your login and driver profile…</p>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
