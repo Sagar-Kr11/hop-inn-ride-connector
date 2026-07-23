@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,33 +39,89 @@ const Auth = () => {
 
   // Driver profile
   const [session, setSession] = useState<any>(null);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
   const [hasDriverRow, setHasDriverRow] = useState<boolean | null>(null);
   const [vehicleNumber, setVehicleNumber] = useState("");
   const [permitNumber, setPermitNumber] = useState("");
   const [registering, setRegistering] = useState(false);
-  const [tab, setTab] = useState("passenger");
+  const [tab, setTab] = useState<string>(() => (searchParams.get("tab") === "driver" ? "driver" : "passenger"));
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setSessionLoaded(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setSession(s);
+      setSessionLoaded(true);
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // Keep tab in sync if the URL changes after mount.
   useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t === "driver" && tab !== "driver") setTab("driver");
+  }, [searchParams, tab]);
+
+  // Query drivers whenever the auth user changes.
+  useEffect(() => {
+    let active = true;
     (async () => {
       if (!session?.user?.id) {
         setHasDriverRow(null);
         return;
       }
-      const { data } = await supabase.from("drivers").select("id").eq("user_id", session.user.id).maybeSingle();
+      const { data } = await supabase
+        .from("drivers")
+        .select("id")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      if (!active) return;
       setHasDriverRow(!!data);
-      // If they arrived here for driver flow and already have a driver row → go straight to /driver
-      if (data && tab === "driver") navigate("/driver");
     })();
-  }, [session?.user?.id, tab, navigate]);
+    return () => {
+      active = false;
+    };
+  }, [session?.user?.id]);
+
+  // Dedicated redirect effect — fires whenever any of these settle,
+  // independent of the drivers-query effect, so no tab/session race can strand the user.
+  useEffect(() => {
+    if (tab === "driver" && session?.user?.id && hasDriverRow === true) {
+      navigate("/driver", { replace: true });
+    }
+  }, [tab, session?.user?.id, hasDriverRow, navigate]);
+
+  const checkDriverRow = useCallback(async (userId: string) => {
+    const { data } = await supabase
+      .from("drivers")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    return !!data;
+  }, []);
 
   const handleGoogle = async (mode: "passenger" | "driver") => {
     setGoogleLoading(true);
+
+    // If already signed in, don't re-run OAuth — just route correctly.
+    if (session?.user?.id) {
+      if (mode === "driver") {
+        const exists = await checkDriverRow(session.user.id);
+        setGoogleLoading(false);
+        if (exists) {
+          navigate("/driver", { replace: true });
+        } else {
+          setHasDriverRow(false); // reveal the registration form
+        }
+      } else {
+        setGoogleLoading(false);
+        navigate(next, { replace: true });
+      }
+      return;
+    }
+
     const nextPath = mode === "driver" ? "/auth?tab=driver" : next;
     const result = await lovable.auth.signInWithOAuth("google", {
       redirect_uri: `${window.location.origin}${nextPath}`,
@@ -76,15 +132,22 @@ const Auth = () => {
       return;
     }
     if (result.redirected) return;
-    setGoogleLoading(false);
-    if (mode === "passenger") navigate(next);
-    // driver mode: stay on this page, effect will route to /driver or show reg form
-  };
 
-  useEffect(() => {
-    const t = searchParams.get("tab");
-    if (t === "driver") setTab("driver");
-  }, [searchParams]);
+    // Popup/inline flow: tokens returned synchronously, session was set by the wrapper.
+    // Re-read the session directly rather than waiting on effects.
+    const { data } = await supabase.auth.getSession();
+    const uid = data.session?.user?.id;
+    setSession(data.session);
+    setGoogleLoading(false);
+    if (!uid) return;
+    if (mode === "driver") {
+      const exists = await checkDriverRow(uid);
+      setHasDriverRow(exists);
+      if (exists) navigate("/driver", { replace: true });
+    } else {
+      navigate(next, { replace: true });
+    }
+  };
 
   const handleSendOtp = async () => {
     const phone = normalizePhone(phoneNumber);
@@ -124,6 +187,17 @@ const Auth = () => {
       return;
     }
     setRegistering(true);
+
+    // Defensive pre-check: if a drivers row already exists, skip insert and route.
+    const already = await checkDriverRow(session.user.id);
+    if (already) {
+      setRegistering(false);
+      setHasDriverRow(true);
+      toast({ title: "Already registered", description: "You're already a Hop-Inn driver. Taking you to the dashboard." });
+      navigate("/driver", { replace: true });
+      return;
+    }
+
     const { error: dErr } = await supabase.from("drivers").insert({
       user_id: session.user.id,
       vehicle_number: vehicleNumber.trim(),
@@ -134,6 +208,13 @@ const Auth = () => {
     });
     if (dErr) {
       setRegistering(false);
+      // Postgres unique_violation — treat as "already registered".
+      if ((dErr as any).code === "23505" || /duplicate key|unique/i.test(dErr.message)) {
+        setHasDriverRow(true);
+        toast({ title: "Already registered", description: "This account is already a Hop-Inn driver." });
+        navigate("/driver", { replace: true });
+        return;
+      }
       toast({ title: "Registration failed", description: dErr.message, variant: "destructive" });
       return;
     }
@@ -141,10 +222,11 @@ const Auth = () => {
     await supabase.from("user_roles").insert({ user_id: session.user.id, role: "driver" });
     setRegistering(false);
     toast({ title: "Welcome, driver!", description: "Your registration is submitted for verification." });
-    navigate("/driver");
+    navigate("/driver", { replace: true });
   };
 
   const needsDriverProfile = tab === "driver" && session?.user && hasDriverRow === false;
+  const driverAwaitingCheck = tab === "driver" && session?.user && hasDriverRow === null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
@@ -160,7 +242,7 @@ const Auth = () => {
           <div className="text-center mb-6">
             <img src={logoAsset.url} alt="Hop-Inn logo" className="mx-auto mb-4 h-16 w-16 rounded-full object-cover" />
             <h1 className="text-2xl font-bold mb-2">Welcome to Hop-Inn</h1>
-            <p className="text-muted-foreground">Login or create your account</p>
+            <p className="text-muted-foreground">Sign in or create your account — same button works for both.</p>
           </div>
 
           <Tabs value={tab} onValueChange={setTab} className="w-full">
@@ -170,55 +252,81 @@ const Auth = () => {
             </TabsList>
 
             <TabsContent value="passenger" className="space-y-4">
-              <Button variant="outline" className="w-full" onClick={() => handleGoogle("passenger")} disabled={googleLoading}>
-                {googleLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Continue with Google
-              </Button>
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-border" />
-                <span className="text-xs text-muted-foreground">or use phone</span>
-                <div className="flex-1 h-px bg-border" />
-              </div>
-              {!showOtp ? (
-                <>
-                  <div>
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input id="name" placeholder="Enter your name" value={name} onChange={(e) => setName(e.target.value)} className="mt-2" />
+              {session?.user ? (
+                <div className="space-y-3">
+                  <div className="rounded-lg bg-primary/10 p-3 text-sm">
+                    Signed in as <strong>{session.user.email ?? session.user.phone ?? "your account"}</strong>.
                   </div>
-                  <div>
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input id="phone" type="tel" placeholder="+91 XXXXX XXXXX" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} className="mt-2" />
-                  </div>
-                  <Button className="w-full" size="lg" onClick={handleSendOtp} disabled={sending}>
-                    {sending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Send OTP
+                  <Button className="w-full" size="lg" onClick={() => navigate(next, { replace: true })}>
+                    Continue to Hop-Inn
                   </Button>
-                </>
+                  <Button
+                    variant="ghost"
+                    className="w-full"
+                    onClick={async () => {
+                      await supabase.auth.signOut();
+                    }}
+                  >
+                    Sign out
+                  </Button>
+                </div>
               ) : (
                 <>
-                  <div>
-                    <Label htmlFor="otp">Enter OTP</Label>
-                    <Input id="otp" type="text" placeholder="6-digit code" maxLength={6}
-                      value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                      className="mt-2 text-center text-2xl tracking-widest" />
-                    <p className="text-xs text-muted-foreground mt-2">Sent to {normalizePhone(phoneNumber)}</p>
-                  </div>
-                  <Button className="w-full" size="lg" onClick={handleVerify} disabled={verifying || otp.length < 6}>
-                    {verifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Verify & Continue
+                  <Button variant="outline" className="w-full" onClick={() => handleGoogle("passenger")} disabled={googleLoading}>
+                    {googleLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Continue with Google (sign in or sign up)
                   </Button>
-                  <Button variant="ghost" className="w-full" onClick={() => { setShowOtp(false); setOtp(""); }}>Change number / Resend</Button>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-xs text-muted-foreground">or use phone</span>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+                  {!showOtp ? (
+                    <>
+                      <div>
+                        <Label htmlFor="name">Full Name</Label>
+                        <Input id="name" placeholder="Enter your name" value={name} onChange={(e) => setName(e.target.value)} className="mt-2" />
+                      </div>
+                      <div>
+                        <Label htmlFor="phone">Phone Number</Label>
+                        <Input id="phone" type="tel" placeholder="+91 XXXXX XXXXX" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} className="mt-2" />
+                      </div>
+                      <Button className="w-full" size="lg" onClick={handleSendOtp} disabled={sending}>
+                        {sending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Send OTP
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <Label htmlFor="otp">Enter OTP</Label>
+                        <Input id="otp" type="text" placeholder="6-digit code" maxLength={6}
+                          value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                          className="mt-2 text-center text-2xl tracking-widest" />
+                        <p className="text-xs text-muted-foreground mt-2">Sent to {normalizePhone(phoneNumber)}</p>
+                      </div>
+                      <Button className="w-full" size="lg" onClick={handleVerify} disabled={verifying || otp.length < 6}>
+                        {verifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Verify & Continue
+                      </Button>
+                      <Button variant="ghost" className="w-full" onClick={() => { setShowOtp(false); setOtp(""); }}>Change number / Resend</Button>
+                    </>
+                  )}
                 </>
               )}
             </TabsContent>
 
             <TabsContent value="driver" className="space-y-4">
-              {!session ? (
+              {!sessionLoaded ? (
+                <p className="text-sm text-muted-foreground text-center flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Checking your session…
+                </p>
+              ) : !session ? (
                 <>
                   <Button variant="outline" className="w-full" onClick={() => handleGoogle("driver")} disabled={googleLoading}>
                     {googleLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Continue with Google
+                    Continue with Google (sign in or sign up)
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
-                    We use Google to verify driver identity. Vehicle & permit come next.
+                    Returning drivers go straight to the dashboard. New drivers add vehicle & permit next.
                   </p>
                   <div className="flex items-center gap-3">
                     <div className="flex-1 h-px bg-border" />
@@ -230,6 +338,10 @@ const Auth = () => {
                     <Input type="tel" placeholder="+91 XXXXX XXXXX" className="mt-2" disabled />
                   </div>
                 </>
+              ) : driverAwaitingCheck ? (
+                <p className="text-sm text-muted-foreground text-center flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Looking up your driver profile…
+                </p>
               ) : needsDriverProfile ? (
                 <>
                   <div className="rounded-lg bg-primary/10 p-3 text-sm">
@@ -247,10 +359,19 @@ const Auth = () => {
                     {registering && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Register as Driver
                   </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full"
+                    onClick={async () => {
+                      await supabase.auth.signOut();
+                    }}
+                  >
+                    Use a different account
+                  </Button>
                 </>
               ) : hasDriverRow ? (
                 <div className="text-center space-y-4">
-                  <p className="text-sm">You're already registered as a driver.</p>
+                  <p className="text-sm">You're already registered as a driver. Redirecting…</p>
                   <Link to="/driver"><Button className="w-full" size="lg">Go to Driver Dashboard</Button></Link>
                 </div>
               ) : (
