@@ -65,7 +65,7 @@ const Ride = () => {
       .channel(`driver-loc-${ride.driver_id}`)
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "drivers", filter: `id=eq.${ride.driver_id}` },
+        { event: "UPDATE", schema: "public", table: "drivers", filter: `user_id=eq.${ride.driver_id}` },
         (payload) => setDriver(payload.new),
       )
       .subscribe();
