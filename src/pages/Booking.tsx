@@ -75,7 +75,7 @@ const Booking = () => {
         destCoords &&
         base.length > 0
       ) {
-        const ids = base.map((d) => d.id);
+        const ids = base.map((d) => d.user_id).filter(Boolean);
         const { data: routes } = await supabase
           .from("driver_routes")
           .select("driver_id, start_latitude, start_longitude, end_latitude, end_longitude")
@@ -86,7 +86,7 @@ const Booking = () => {
           if (r.start_latitude && r.end_latitude) byDriver.set(r.driver_id, r);
         });
         enriched = base.map((d) => {
-          const r = byDriver.get(d.id);
+          const r = byDriver.get(d.user_id);
           if (!r) return { ...d, onRoute: false };
           const start = { lat: Number(r.start_latitude), lng: Number(r.start_longitude) };
           const end = { lat: Number(r.end_latitude), lng: Number(r.end_longitude) };
@@ -95,6 +95,7 @@ const Booking = () => {
           return { ...d, onRoute: dPickup <= 2.5 && dDrop <= 2.5 };
         });
         enriched.sort((a, b) => Number(b.onRoute) - Number(a.onRoute));
+
       }
       setDrivers(enriched);
     };

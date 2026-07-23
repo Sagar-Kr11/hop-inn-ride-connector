@@ -40,11 +40,11 @@ const DriverRoute = () => {
         navigate("/auth?next=/driver/route");
         return;
       }
-      setDriverId(drv.id);
+      setDriverId(uid);
       const { data: existing } = await supabase
         .from("driver_routes")
         .select("*")
-        .eq("driver_id", drv.id)
+        .eq("driver_id", uid)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -64,6 +64,7 @@ const DriverRoute = () => {
       setLoading(false);
     })();
   }, [navigate]);
+
 
   const handleSave = async () => {
     if (!driverId) return;
