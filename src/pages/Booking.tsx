@@ -10,7 +10,7 @@ import PlaceAutocomplete from "@/components/PlaceAutocomplete";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { estimateFare, haversineKm } from "@/lib/utils";
+import { estimateFare, haversineKm, pointToSegmentKm } from "@/lib/utils";
 
 type LatLng = { lat: number; lng: number };
 
