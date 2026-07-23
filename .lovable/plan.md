@@ -1,18 +1,21 @@
-## Plan
+## Problem
 
-The location search is failing because the current Google Places Autocomplete request is sending `locationBias` in a shape that the Maps JavaScript API rejects. The visible error confirms the request reaches Google, but Google rejects the bias object before returning suggestions.
+Saving a route fails with `new row violates row-level security policy for table "driver_routes"`.
+
+The existing policy `Drivers can manage their own routes` checks `auth.uid() = driver_id`, but `driver_routes.driver_id` is a foreign key to `drivers.id` (the drivers table primary key), not to the auth user id. The two UUIDs never match, so every insert/update/delete from a signed-in driver is rejected. This is a policy bug, not a client bug — no constraint you set.
 
 ## Fix
 
-1. Update `PlaceAutocomplete` to use the supported Places Autocomplete bias format:
-   - Replace the nested `circle: { center, radius }` value with a simpler point bias object.
-   - Keep `includedRegionCodes: ["in"]` so results stay India-focused.
+Replace the broken policy with one that maps `driver_id` back to the owning auth user through the `drivers` table.
 
-2. Make selection more reliable:
-   - Ignore the synthetic “Places lookup failed” row so clicking it does not try to fetch details for a fake place id.
-   - Use the modern `placePrediction.toPlace()` path when available to fetch selected place coordinates.
+New policy (ALL commands, USING + WITH CHECK):
+```
+driver_id IN (SELECT id FROM public.drivers WHERE user_id = auth.uid())
+```
 
-3. Verify in the preview:
-   - Open `/booking`.
-   - Type a real location like “Sagar” or “PVR Pune”.
-   - Confirm real Google suggestions appear and selecting one fills the field with coordinates.
+Steps:
+1. Drop the existing `Drivers can manage their own routes` policy on `public.driver_routes`.
+2. Recreate it with the correct predicate above, applied to `FOR ALL TO authenticated` with both `USING` and `WITH CHECK`.
+3. Leave the passenger-visibility policy untouched.
+
+No table structure changes, no frontend changes. After the migration, the same "Save route" call from `/driver/route` will succeed.
