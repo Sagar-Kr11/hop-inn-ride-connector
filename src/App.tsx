@@ -28,6 +28,7 @@ const App = () => (
           <Route path="/" element={<Home />} />
           <Route path="/booking" element={<Booking />} />
           <Route path="/driver" element={<Driver />} />
+          <Route path="/driver/route" element={<DriverRoute />} />
           <Route path="/events" element={<Events />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/safety" element={<Safety />} />
