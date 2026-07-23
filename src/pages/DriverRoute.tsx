@@ -32,12 +32,12 @@ const DriverRoute = () => {
       const { data: sess } = await supabase.auth.getSession();
       const uid = sess.session?.user.id;
       if (!uid) {
-        navigate("/auth?next=/driver/route");
+        navigate("/auth?tab=driver&next=/driver/route");
         return;
       }
       const { data: drv } = await supabase.from("drivers").select("id").eq("user_id", uid).maybeSingle();
       if (!drv) {
-        navigate("/auth?next=/driver/route");
+        navigate("/auth?tab=driver&next=/driver/route");
         return;
       }
       setDriverId(uid);

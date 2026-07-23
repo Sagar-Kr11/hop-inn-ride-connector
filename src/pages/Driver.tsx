@@ -38,17 +38,24 @@ const Driver = () => {
 
   useEffect(() => {
     let cancelled = false;
-    const loadForUser = async (uid: string | null) => {
+    const justRegistered = (typeof window !== "undefined" && (window.history.state?.usr?.justRegistered)) === true;
+    const loadForUser = async (uid: string | null, allowRetry = justRegistered) => {
       if (!uid) {
-        navigate("/auth?next=/driver");
+        navigate("/auth?tab=driver&next=/driver");
         return;
       }
       if (cancelled) return;
       setUserId(uid);
-      const { data } = await supabase.from("drivers").select("*").eq("user_id", uid).maybeSingle();
+      let { data } = await supabase.from("drivers").select("*").eq("user_id", uid).maybeSingle();
+      if (!data && allowRetry) {
+        // Post-registration race: row may not be visible yet — retry briefly before bouncing.
+        await new Promise((r) => setTimeout(r, 600));
+        if (cancelled) return;
+        ({ data } = await supabase.from("drivers").select("*").eq("user_id", uid).maybeSingle());
+      }
       if (cancelled) return;
       if (!data) {
-        navigate("/auth?next=/driver");
+        navigate("/auth?tab=driver&next=/driver");
         return;
       }
       setDriverRow(data);
