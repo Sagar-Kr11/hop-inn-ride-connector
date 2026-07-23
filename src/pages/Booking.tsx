@@ -58,22 +58,51 @@ const Booking = () => {
         setDrivers([]);
         return;
       }
-      // Rough proximity filter (~15 km bounding box) if we have a pickup
-      const filtered = pickupCoords
-        ? (data || []).filter((d) =>
-            haversineKm(pickupCoords, {
+      const base = (data || []).filter((d) =>
+        pickupCoords
+          ? haversineKm(pickupCoords, {
               lat: Number(d.current_latitude),
               lng: Number(d.current_longitude),
-            }) < 15,
-          )
-        : data || [];
-      setDrivers(filtered);
+            }) < 15
+          : true,
+      );
+
+      // For shared_route bookings, fetch active routes for these drivers and flag route matches.
+      let enriched = base.map((d) => ({ ...d, onRoute: false as boolean }));
+      if (
+        rideType === "shared_route" &&
+        pickupCoords &&
+        destCoords &&
+        base.length > 0
+      ) {
+        const ids = base.map((d) => d.id);
+        const { data: routes } = await supabase
+          .from("driver_routes")
+          .select("driver_id, start_latitude, start_longitude, end_latitude, end_longitude")
+          .in("driver_id", ids)
+          .eq("is_active", true);
+        const byDriver = new Map<string, any>();
+        (routes || []).forEach((r) => {
+          if (r.start_latitude && r.end_latitude) byDriver.set(r.driver_id, r);
+        });
+        enriched = base.map((d) => {
+          const r = byDriver.get(d.id);
+          if (!r) return { ...d, onRoute: false };
+          const start = { lat: Number(r.start_latitude), lng: Number(r.start_longitude) };
+          const end = { lat: Number(r.end_latitude), lng: Number(r.end_longitude) };
+          const dPickup = pointToSegmentKm(pickupCoords, start, end);
+          const dDrop = pointToSegmentKm(destCoords, start, end);
+          return { ...d, onRoute: dPickup <= 2.5 && dDrop <= 2.5 };
+        });
+        enriched.sort((a, b) => Number(b.onRoute) - Number(a.onRoute));
+      }
+      setDrivers(enriched);
     };
     load();
     return () => {
       cancelled = true;
     };
-  }, [pickupCoords?.lat, pickupCoords?.lng]);
+  }, [pickupCoords?.lat, pickupCoords?.lng, destCoords?.lat, destCoords?.lng, rideType]);
 
   const distanceKm = useMemo(() => {
     if (!pickupCoords || !destCoords) return null;
