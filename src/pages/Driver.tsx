@@ -108,23 +108,66 @@ const Driver = () => {
     };
   }, []);
 
+  // Load active route for this driver
+  useEffect(() => {
+    if (!driverRow?.id) return;
+    let cancelled = false;
+    const loadRoute = async () => {
+      const { data } = await supabase
+        .from("driver_routes")
+        .select("*")
+        .eq("driver_id", driverRow.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data && data.start_latitude && data.end_latitude) {
+        setActiveRoute({
+          id: data.id,
+          name: data.route_name,
+          start: { lat: Number(data.start_latitude), lng: Number(data.start_longitude) },
+          end: { lat: Number(data.end_latitude), lng: Number(data.end_longitude) },
+        });
+      } else {
+        setActiveRoute(null);
+      }
+    };
+    loadRoute();
+    return () => { cancelled = true; };
+  }, [driverRow?.id]);
+
   // Load nearby search-status rides
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase
         .from("rides")
-        .select("id, pickup_location, dropoff_location, pickup_latitude, pickup_longitude, fare, ride_type, created_at, passenger_id")
+        .select("id, pickup_location, dropoff_location, pickup_latitude, pickup_longitude, dropoff_latitude, dropoff_longitude, fare, ride_type, created_at, passenger_id")
         .eq("status", "searching")
         .is("driver_id", null)
         .order("created_at", { ascending: false })
         .limit(20);
-      const rows = (data || []).map((r) => ({
-        ...r,
-        distanceKm: loc
-          ? haversineKm(loc, { lat: Number(r.pickup_latitude), lng: Number(r.pickup_longitude) })
-          : null,
-      }));
-      rows.sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
+      const rows = (data || []).map((r) => {
+        const pickup = { lat: Number(r.pickup_latitude), lng: Number(r.pickup_longitude) };
+        const dropoff = { lat: Number(r.dropoff_latitude), lng: Number(r.dropoff_longitude) };
+        let onRoute = false;
+        if (activeRoute && r.ride_type === "shared_route") {
+          const dPickup = pointToSegmentKm(pickup, activeRoute.start, activeRoute.end);
+          const dDrop = pointToSegmentKm(dropoff, activeRoute.start, activeRoute.end);
+          onRoute = dPickup <= ROUTE_THRESHOLD_KM && dDrop <= ROUTE_THRESHOLD_KM;
+        }
+        return {
+          ...r,
+          distanceKm: loc ? haversineKm(loc, pickup) : null,
+          onRoute,
+        };
+      });
+      rows.sort((a, b) => {
+        if (activeRoute) {
+          if (a.onRoute !== b.onRoute) return a.onRoute ? -1 : 1;
+        }
+        return (a.distanceKm ?? 999) - (b.distanceKm ?? 999);
+      });
       setRequests(rows);
     };
     load();
@@ -135,7 +178,7 @@ const Driver = () => {
     return () => {
       supabase.removeChannel(chan);
     };
-  }, [loc?.lat, loc?.lng]);
+  }, [loc?.lat, loc?.lng, activeRoute?.id]);
 
   const acceptRide = async (rideId: string) => {
     if (!driverRow) return;
