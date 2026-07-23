@@ -32,6 +32,7 @@ const Driver = () => {
   const [isOnline, setIsOnline] = useState(false);
   const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [requests, setRequests] = useState<any[]>([]);
+  const [activeRoute, setActiveRoute] = useState<ActiveRoute | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const lastPushRef = useRef<number>(0);
 
