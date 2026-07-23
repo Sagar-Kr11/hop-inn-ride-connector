@@ -59,7 +59,7 @@ const Home = () => {
                     Book a Ride
                   </Button>
                 </Link>
-                <Link to="/driver">
+                <Link to="/auth?tab=driver&next=/driver">
                   <Button variant="charcoal" size="lg" className="text-base font-semibold px-8">
                     Drive with Us
                   </Button>
