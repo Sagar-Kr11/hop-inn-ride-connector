@@ -182,10 +182,10 @@ const Driver = () => {
   }, [loc?.lat, loc?.lng, activeRoute?.id]);
 
   const acceptRide = async (rideId: string) => {
-    if (!driverRow) return;
+    if (!driverRow || !userId) return;
     const { error } = await supabase
       .from("rides")
-      .update({ driver_id: driverRow.id, status: "matched" })
+      .update({ driver_id: userId, status: "matched" })
       .eq("id", rideId)
       .eq("status", "searching")
       .is("driver_id", null);
