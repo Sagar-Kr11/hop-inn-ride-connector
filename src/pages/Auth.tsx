@@ -198,6 +198,7 @@ const Auth = () => {
       return;
     }
 
+    console.log("[Auth] inserting drivers row for", session.user.id);
     const { error: dErr } = await supabase.from("drivers").insert({
       user_id: session.user.id,
       vehicle_number: vehicleNumber.trim(),
@@ -207,20 +208,54 @@ const Auth = () => {
       is_verified: false,
     });
     if (dErr) {
-      setRegistering(false);
       // Postgres unique_violation — treat as "already registered".
       if ((dErr as any).code === "23505" || /duplicate key|unique/i.test(dErr.message)) {
+        console.log("[Auth] insert returned unique_violation; row already exists");
         setHasDriverRow(true);
+        setRegistering(false);
         toast({ title: "Already registered", description: "This account is already a Hop-Inn driver." });
         navigate("/driver", { replace: true });
         return;
       }
+      console.error("[Auth] drivers insert failed", dErr);
+      setRegistering(false);
       toast({ title: "Registration failed", description: dErr.message, variant: "destructive" });
       return;
     }
+    console.log("[Auth] drivers insert succeeded; polling for SELECT visibility");
+
+    // Confirm the row is actually SELECT-able (same query Driver.tsx runs) before navigating.
+    let confirmed = false;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      const { data: check, error: checkErr } = await supabase
+        .from("drivers")
+        .select("id")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      console.log("[Auth] confirm attempt", attempt, "->", !!check, checkErr?.message ?? "");
+      if (check) {
+        confirmed = true;
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 400));
+    }
+
+    if (!confirmed) {
+      console.error("[Auth] drivers row never became SELECT-able after 5 attempts");
+      setRegistering(false);
+      toast({
+        title: "Registration saved, but not visible yet",
+        description: "Please try signing in again in a moment.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Additive role; unique(user_id, role) means we ignore duplicate errors
     await supabase.from("user_roles").insert({ user_id: session.user.id, role: "driver" });
+    setHasDriverRow(true);
     setRegistering(false);
+    console.log("[Auth] confirmed; navigating to /driver");
     toast({ title: "Welcome, driver!", description: "Your registration is submitted for verification." });
     navigate("/driver", { replace: true, state: { justRegistered: true } });
   };
