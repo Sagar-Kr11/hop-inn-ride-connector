@@ -182,10 +182,10 @@ const Driver = () => {
   }, [loc?.lat, loc?.lng, activeRoute?.id]);
 
   const acceptRide = async (rideId: string) => {
-    if (!driverRow) return;
+    if (!driverRow || !userId) return;
     const { error } = await supabase
       .from("rides")
-      .update({ driver_id: driverRow.id, status: "matched" })
+      .update({ driver_id: userId, status: "matched" })
       .eq("id", rideId)
       .eq("status", "searching")
       .is("driver_id", null);
@@ -199,13 +199,13 @@ const Driver = () => {
 
   // Earnings aggregates
   const { data: stats } = useQuery({
-    queryKey: ["driver-stats", driverRow?.id],
-    enabled: !!driverRow?.id,
+    queryKey: ["driver-stats", userId],
+    enabled: !!userId,
     queryFn: async () => {
       const { data } = await supabase
         .from("rides")
         .select("fare, driver_rating, status")
-        .eq("driver_id", driverRow.id)
+        .eq("driver_id", userId)
         .eq("status", "completed");
       const trips = data?.length ?? 0;
       const earnings = (data || []).reduce((s, r) => s + (Number(r.fare) || 0), 0);
