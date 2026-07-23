@@ -404,8 +404,8 @@ const Driver = () => {
             <Card className="p-6 shadow-lg">
               <h3 className="font-semibold text-lg mb-4">Quick Actions</h3>
               <div className="space-y-3">
-                <Link to="/booking"><Button variant="charcoalOutline" className="w-full justify-start" size="lg">
-                  <Route className="mr-3 h-5 w-5" />Set Route
+                <Link to="/driver/route"><Button variant="charcoalOutline" className="w-full justify-start" size="lg">
+                  <Route className="mr-3 h-5 w-5" />{activeRoute ? "Edit Route" : "Set Route"}
                 </Button></Link>
                 <Link to="/history"><Button variant="charcoalOutline" className="w-full justify-start" size="lg">
                   <IndianRupee className="mr-3 h-5 w-5" />Earnings Report
