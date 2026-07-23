@@ -1,0 +1,5 @@
+ALTER TABLE public.driver_routes
+  ADD COLUMN IF NOT EXISTS start_latitude NUMERIC,
+  ADD COLUMN IF NOT EXISTS start_longitude NUMERIC,
+  ADD COLUMN IF NOT EXISTS end_latitude NUMERIC,
+  ADD COLUMN IF NOT EXISTS end_longitude NUMERIC;

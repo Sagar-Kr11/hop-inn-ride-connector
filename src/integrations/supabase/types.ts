@@ -18,31 +18,43 @@ export type Database = {
         Row: {
           created_at: string
           driver_id: string
+          end_latitude: number | null
           end_location: string
+          end_longitude: number | null
           id: string
           is_active: boolean
           route_name: string
+          start_latitude: number | null
           start_location: string
+          start_longitude: number | null
           waypoints: Json | null
         }
         Insert: {
           created_at?: string
           driver_id: string
+          end_latitude?: number | null
           end_location: string
+          end_longitude?: number | null
           id?: string
           is_active?: boolean
           route_name: string
+          start_latitude?: number | null
           start_location: string
+          start_longitude?: number | null
           waypoints?: Json | null
         }
         Update: {
           created_at?: string
           driver_id?: string
+          end_latitude?: number | null
           end_location?: string
+          end_longitude?: number | null
           id?: string
           is_active?: boolean
           route_name?: string
+          start_latitude?: number | null
           start_location?: string
+          start_longitude?: number | null
           waypoints?: Json | null
         }
         Relationships: []
