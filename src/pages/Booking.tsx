@@ -42,8 +42,33 @@ const Booking = () => {
 
   // Live drivers near pickup (or map center)
   const [drivers, setDrivers] = useState<any[]>([]);
+
+  // Guard: signed-in drivers shouldn't book through the passenger flow
   useEffect(() => {
     let cancelled = false;
+    const check = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const uid = sessionData.session?.user?.id;
+      if (!uid) return;
+      const { data: driverRow } = await supabase
+        .from("drivers")
+        .select("id")
+        .eq("user_id", uid)
+        .maybeSingle();
+      if (cancelled || !driverRow) return;
+      toast({
+        title: "Driver account detected",
+        description: "Driver accounts book through a separate flow — switch to the driver dashboard.",
+      });
+      navigate("/driver", { replace: true });
+    };
+    check();
+    return () => { cancelled = true; };
+  }, [navigate]);
+
+  useEffect(() => {
+    let cancelled = false;
+
     const load = async () => {
       const { data, error } = await supabase
         .from("drivers")
