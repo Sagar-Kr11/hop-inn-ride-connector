@@ -7,6 +7,7 @@ import { RideAssistant } from "@/components/RideAssistant";
 import Home from "./pages/Home";
 import Booking from "./pages/Booking";
 import Driver from "./pages/Driver";
+import DriverRoute from "./pages/DriverRoute";
 import Events from "./pages/Events";
 import Auth from "./pages/Auth";
 import Safety from "./pages/Safety";
