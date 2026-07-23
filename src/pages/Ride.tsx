@@ -28,7 +28,7 @@ const Ride = () => {
         const { data: d } = await supabase
           .from("drivers")
           .select("*")
-          .eq("id", data.driver_id)
+          .eq("user_id", data.driver_id)
           .maybeSingle();
         if (!cancelled) setDriver(d);
         if (d) {
